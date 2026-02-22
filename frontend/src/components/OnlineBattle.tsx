@@ -285,7 +285,8 @@ export default function OnlineBattle({
   // Sonar availability
   const myTurnsTaken = game ? (playerNum === 1 ? game.p1TurnsTaken : game.p2TurnsTaken) : 0;
   const mySonarUsed = game ? (playerNum === 1 ? game.p1SonarUsed : game.p2SonarUsed) : false;
-  const sonarAvailable = canFire && !mySonarUsed && myTurnsTaken > 0 && myTurnsTaken % 3 === 0;
+  // Sonar unlocks after 3 turns and stays available until used (not just on exact multiples)
+  const sonarAvailable = canFire && !mySonarUsed && myTurnsTaken >= 3;
 
   // Sonar hover preview
   const sonarHoverCells = sonarMode && sonarHover
@@ -359,9 +360,9 @@ export default function OnlineBattle({
         {sonarAvailable && !sonarMode && (
           <span className="text-xs text-violet-400/60">3x3 area scan available</span>
         )}
-        {!sonarAvailable && !mySonarUsed && canFire && (
+        {!sonarAvailable && !mySonarUsed && canFire && myTurnsTaken < 3 && (
           <span className="text-xs text-slate-600">
-            Sonar in {myTurnsTaken === 0 ? 3 : 3 - (myTurnsTaken % 3)} turns
+            Sonar in {3 - myTurnsTaken} turn{3 - myTurnsTaken !== 1 ? 's' : ''}
           </span>
         )}
         {mySonarUsed && (

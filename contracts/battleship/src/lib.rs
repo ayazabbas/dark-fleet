@@ -301,12 +301,12 @@ impl BattleshipContract {
             if game.turn != 1 || game.p1_sonar_used {
                 return false;
             }
-            game.p1_turns_taken > 0 && game.p1_turns_taken % 3 == 0
+            game.p1_turns_taken >= 3
         } else if player == game.player2 {
             if game.turn != 2 || game.p2_sonar_used {
                 return false;
             }
-            game.p2_turns_taken > 0 && game.p2_turns_taken % 3 == 0
+            game.p2_turns_taken >= 3
         } else {
             false
         }
@@ -330,7 +330,7 @@ impl BattleshipContract {
             assert!(player == game.player1, "not your turn");
             assert!(!game.p1_sonar_used, "sonar already used");
             assert!(
-                game.p1_turns_taken > 0 && game.p1_turns_taken % 3 == 0,
+                game.p1_turns_taken >= 3,
                 "sonar not available this turn"
             );
             game.p1_sonar_used = true;
@@ -339,7 +339,7 @@ impl BattleshipContract {
             assert!(player == game.player2, "not your turn");
             assert!(!game.p2_sonar_used, "sonar already used");
             assert!(
-                game.p2_turns_taken > 0 && game.p2_turns_taken % 3 == 0,
+                game.p2_turns_taken >= 3,
                 "sonar not available this turn"
             );
             game.p2_sonar_used = true;
