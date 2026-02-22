@@ -13,6 +13,7 @@ import {
   pollGameState,
   type OnChainGame,
 } from '../lib/stellar';
+import { gameIdToCode } from '../lib/gameCode';
 
 const COL_LABELS = 'ABCDEFGHIJ';
 /** Convert numeric x,y to board notation like "A1", "C5" */
@@ -409,7 +410,7 @@ export default function OnlineBattle({
 
       {/* Game info */}
       <div className="text-xs text-slate-600 text-center">
-        Game #{gameId} · You are Player {playerNum} · {walletAddress.slice(0, 8)}...{walletAddress.slice(-4)}
+        Game {gameIdToCode(gameId)} · You are Player {playerNum} · {walletAddress.slice(0, 8)}...{walletAddress.slice(-4)}
       </div>
     </div>
   );

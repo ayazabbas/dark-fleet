@@ -15,6 +15,7 @@ import {
   CONTRACT_ID,
   EXPLORER_TX_URL,
 } from './lib/stellar';
+import { gameIdToCode, codeToGameId } from './lib/gameCode';
 
 type Phase =
   | 'landing'
@@ -93,8 +94,8 @@ function App() {
   };
 
   const handleJoinSubmit = async () => {
-    const code = parseInt(joinCode, 10);
-    if (isNaN(code) || code <= 0) {
+    const numericId = codeToGameId(joinCode);
+    if (numericId === null) {
       setError('Please enter a valid game code');
       return;
     }
@@ -104,18 +105,14 @@ function App() {
 
     try {
       // Verify game exists first
-      const game = await getGame(code);
+      const game = await getGame(numericId);
       if (game.status !== 0) {
         throw new Error('Game is no longer in setup phase');
       }
-      if (game.player1 !== game.player2 && game.player2 !== game.player1) {
-        // Check if player2 slot is taken (player2 != player1 means someone already joined)
-        // Actually we check if boardsCommitted < 2, meaning there's still room
-      }
 
-      const txHash = await joinGame(code, wallet!);
-      addLog(`Joined game #${code}`, txHash);
-      setGameId(code);
+      const txHash = await joinGame(numericId, wallet!);
+      addLog(`Joined game ${gameIdToCode(numericId)}`, txHash);
+      setGameId(numericId);
       setPlayerNum(2);
       setPhase('place-ships');
       setStatusMsg('');
@@ -148,7 +145,7 @@ function App() {
         setStatusMsg('Creating game on Stellar...');
         const { gameId: newId, txHash: newTx } = await newGame(wallet!);
         setGameId(newId);
-        addLog(`Game #${newId} created on-chain`, newTx);
+        addLog(`Game ${gameIdToCode(newId)} created on-chain`, newTx);
 
         setStatusMsg('Committing board hash on-chain...');
         const commitTx = await commitBoard(newId, wallet!, boardHash);
@@ -253,7 +250,7 @@ function App() {
             )}
             {gameId && (
               <div className="text-slate-500 font-mono bg-slate-800/50 px-2 py-1 rounded">
-                Game #{gameId}
+                {gameIdToCode(gameId)}
               </div>
             )}
           </div>
@@ -357,7 +354,7 @@ function App() {
             <div className="space-y-3">
               <input
                 type="text"
-                placeholder="Game code (e.g. 42)"
+                placeholder="Game code (e.g. K7BX)"
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-center text-lg font-mono text-white placeholder-slate-600 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600"
@@ -391,7 +388,7 @@ function App() {
             )}
             {playerNum === 2 && (
               <div className="bg-cyan-900/20 border border-cyan-700/50 rounded-lg p-3 mb-6 text-center">
-                <p className="text-cyan-300 text-sm font-medium">Joining game #{gameId}</p>
+                <p className="text-cyan-300 text-sm font-medium">Joining game {gameIdToCode(gameId!)}</p>
                 <p className="text-cyan-300/60 text-xs mt-0.5">Place your ships to begin the battle</p>
               </div>
             )}
@@ -439,7 +436,7 @@ function App() {
               <div className="space-y-3">
                 <p className="text-slate-400">Share this game code with your opponent:</p>
                 <div className="bg-slate-800 rounded-lg px-6 py-4 border border-cyan-700/50 inline-block">
-                  <span className="text-4xl font-black text-cyan-400 font-mono">{gameId}</span>
+                  <span className="text-4xl font-black text-cyan-400 font-mono tracking-widest">{gameIdToCode(gameId)}</span>
                 </div>
                 <p className="text-slate-500 text-sm">
                   Your opponent needs to click "Join Game" and enter this code.
@@ -479,7 +476,7 @@ function App() {
                 : 'Your fleet has been destroyed. Better luck next time!'}
             </p>
             {gameId && (
-              <p className="text-xs text-slate-600">Game #{gameId} · You were Player {playerNum}</p>
+              <p className="text-xs text-slate-600">Game {gameIdToCode(gameId!)} · You were Player {playerNum}</p>
             )}
             <div className="flex gap-4 justify-center">
               <button
