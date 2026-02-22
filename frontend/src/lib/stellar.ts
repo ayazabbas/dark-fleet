@@ -32,8 +32,7 @@ interface TxResult {
 async function buildAndSendTx(
   callerAddress: string,
   method: string,
-  params: StellarSdk.xdr.ScVal[],
-  retries = 3
+  params: StellarSdk.xdr.ScVal[]
 ): Promise<TxResult> {
   const account = await server.getAccount(callerAddress);
   const contract = new StellarSdk.Contract(CONTRACT_ID);
@@ -46,18 +45,9 @@ async function buildAndSendTx(
     .setTimeout(60)
     .build();
 
-  // Retry simulation — RPC state may lag after a previous tx lands
-  let simulated = await server.simulateTransaction(tx);
-  let attempt = 1;
-  while (StellarSdk.rpc.Api.isSimulationError(simulated) && attempt < retries) {
-    console.warn(`[buildAndSendTx] Simulation attempt ${attempt} failed for ${method}, retrying in 2s...`);
-    await new Promise(r => setTimeout(r, 2000));
-    simulated = await server.simulateTransaction(tx);
-    attempt++;
-  }
+  const simulated = await server.simulateTransaction(tx);
   if (StellarSdk.rpc.Api.isSimulationError(simulated)) {
     console.error(`[buildAndSendTx] Simulation failed for ${method}:`, (simulated as StellarSdk.rpc.Api.SimulateTransactionErrorResponse).error);
-    console.error(`[buildAndSendTx] Params:`, params.map(p => p.toXDR('base64')));
     throw new Error(`Simulation failed: ${(simulated as StellarSdk.rpc.Api.SimulateTransactionErrorResponse).error}`);
   }
 
@@ -97,6 +87,25 @@ async function buildAndSendTx(
   }
 
   return { hash: sendResult.hash, returnValue };
+}
+
+// Wait until RPC state reflects a condition (prevents stale-state simulation failures)
+export async function awaitState(
+  gameId: number,
+  condition: (game: OnChainGame) => boolean,
+  timeoutMs = 15000
+): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const game = await getGame(gameId);
+      if (condition(game)) return;
+    } catch {
+      // game might not exist yet
+    }
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  console.warn(`[awaitState] Timed out after ${timeoutMs}ms — proceeding anyway`);
 }
 
 // --- Read-only call helper ---

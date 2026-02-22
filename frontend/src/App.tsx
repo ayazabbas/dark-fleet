@@ -11,6 +11,7 @@ import {
   joinGame,
   commitBoard,
   getGame,
+  awaitState,
   pollGameState,
   CONTRACT_ID,
   EXPLORER_TX_URL,
@@ -147,19 +148,12 @@ function App() {
         setGameId(newId);
         addLog(`Game ${gameIdToCode(newId)} created on-chain`, newTx);
 
+        // Wait for RPC to reflect the new game before committing board
+        await awaitState(newId, (g) => g.sessionId === newId);
+
         setStatusMsg('Committing board hash on-chain...');
-        try {
-          const commitTx = await commitBoard(newId, wallet!, boardHash);
-          addLog(`Board hash committed on-chain`, commitTx);
-        } catch (e) {
-          // Check if board was already committed (tx succeeded but response lost)
-          const g = await getGame(newId);
-          if (g.boardsCommitted >= 1) {
-            addLog('Board hash already committed on-chain (recovered)');
-          } else {
-            throw e;
-          }
-        }
+        const commitTx = await commitBoard(newId, wallet!, boardHash);
+        addLog(`Board hash committed on-chain`, commitTx);
 
         // Start waiting for opponent
         setPhase('waiting');
@@ -168,18 +162,8 @@ function App() {
       } else {
         // P2: just commit board (already joined)
         setStatusMsg('Committing board hash on-chain...');
-        try {
-          const commitTx = await commitBoard(gameId!, wallet!, boardHash);
-          addLog(`Board hash committed on-chain`, commitTx);
-        } catch (e) {
-          const g = await getGame(gameId!);
-          const zero = '0000000000000000000000000000000000000000000000000000000000000000';
-          if (g.boardHash2 !== zero) {
-            addLog('Board hash already committed on-chain (recovered)');
-          } else {
-            throw e;
-          }
-        }
+        const commitTx = await commitBoard(gameId!, wallet!, boardHash);
+        addLog(`Board hash committed on-chain`, commitTx);
 
         // Check if game started
         const game = await getGame(gameId!);
