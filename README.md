@@ -106,7 +106,7 @@ P1 fires → P2 generates ZK proof → report_result(hit, proof) on-chain
 
 The game contract is live on Stellar testnet:
 
-- **Contract Address**: `<to be updated after redeploy with proof storage>`
+- **Contract Address**: `CAMPSSS224MFUVQY6X6LA2QIQEM7AFDKHXG4Q5IVWAJQHLQOX3WQL3EX`
 - **Explorer**: View on [Stellar Lab](https://lab.stellar.org/) or [StellarExpert](https://stellar.expert/explorer/testnet/)
 
 All core contract functions have been tested on testnet: `new_game`, `commit_board`, `take_shot`, `report_result` (with proof), and `report_sonar` (with proof) are working end-to-end.

@@ -8,7 +8,7 @@ import * as StellarSdk from '@stellar/stellar-sdk';
 // --- Config ---
 export const TESTNET_RPC = 'https://soroban-testnet.stellar.org';
 export const TESTNET_PASSPHRASE = StellarSdk.Networks.TESTNET;
-export const CONTRACT_ID = 'CDJQHRE7BNGBGW2SYT7T3B7ZR5SH2BKRIGSTD2MQOMPNEETC3G5YZU3S';
+export const CONTRACT_ID = 'CAMPSSS224MFUVQY6X6LA2QIQEM7AFDKHXG4Q5IVWAJQHLQOX3WQL3EX';
 export const EXPLORER_TX_URL = 'https://stellar.expert/explorer/testnet/tx';
 
 const server = new StellarSdk.rpc.Server(TESTNET_RPC);
