@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import ShipPlacement from './components/ShipPlacement';
 import OnlineBattle from './components/OnlineBattle';
 import type { Ship } from './lib/game';
@@ -233,6 +234,9 @@ function App() {
             </div>
           </div>
           <div className="flex items-center gap-3 text-xs">
+            <Link to="/docs" className="text-slate-500 hover:text-cyan-400 transition-colors text-sm">
+              Docs
+            </Link>
             {wallet ? (
               <div className="text-slate-500 font-mono bg-slate-800/50 px-2 py-1 rounded flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
