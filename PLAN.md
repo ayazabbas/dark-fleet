@@ -104,7 +104,22 @@ Browser A (Player 1):                    Browser B (Player 2):
   - How to play (create game, join, battle)
   - Links: GitHub repo, contract on explorer, hackathon page
 
-### Task 6: Explorer Links in Proof Log
+### Task 6: Contract Build Verification (SEP-0055)
+**Files:** `.github/workflows/release.yml`, `contracts/battleship/Cargo.toml`
+
+Implement [SEP-0055](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0055.md) so the deployed WASM can be verified against the source repo via GitHub Attestations.
+
+- Add WASM metadata to the contract: `source_repo=github:ayazabbas/dark-fleet`
+- Create `.github/workflows/release.yml`:
+  - Triggered on git tag push (`v*`) or manual dispatch
+  - Permissions: `id-token: write`, `contents: write`, `attestations: write`
+  - Build contract with `stellar contract build` (optimized)
+  - Generate GitHub artifact attestation for the compiled WASM
+  - Create GitHub release with the WASM binary attached
+- After final contract redeploy, tag a release so attestation is created
+- Verification: anyone can check `https://api.github.com/repos/ayazabbas/dark-fleet/attestations/sha256:<wasm_hash>` to verify the deployed contract matches the repo source
+
+### Task 7: Explorer Links in Proof Log
 **Files:** `frontend/src/App.tsx` (proof log section), stellar.ts
 
 - Every on-chain transaction returns a tx hash
@@ -119,11 +134,12 @@ Browser A (Player 1):                    Browser B (Player 2):
 1. **Contract update** (Task 1) — needed before frontend can integrate
 2. **Stellar integration lib** (Task 2) — foundation for all on-chain calls
 3. **2-player game flow** (Task 3) — the big one, core gameplay change
-4. **Explorer links** (Task 6) — quick win, enhances proof log
+4. **Explorer links** (Task 7) — quick win, enhances proof log
 5. **Rebrand** (Task 4) — find-and-replace + copy updates
 6. **Docs page** (Task 5) — final polish
+7. **Build verification** (Task 6) — tag release after final deploy, creates attestation
 
-Tasks 4-6 are independent and can be parallelized after Task 3.
+Tasks 4-7 are independent and can be parallelized after Task 3.
 
 ---
 
