@@ -28,7 +28,7 @@ export async function generateBoardProof(ships: string[]): Promise<BoardProofRes
   await initCircuits();
 
   const backend = new BarretenbergBackend(boardCircuit);
-  const noir = new Noir(boardCircuit, backend);
+  const noir = new Noir(boardCircuit);
 
   const { witness, returnValue } = await noir.execute({ ships });
 
@@ -70,7 +70,7 @@ export async function generateShotProof(
   await initCircuits();
 
   const backend = new BarretenbergBackend(shotCircuit);
-  const noir = new Noir(shotCircuit, backend);
+  const noir = new Noir(shotCircuit);
 
   const { witness } = await noir.execute({
     hash: boardHash,
