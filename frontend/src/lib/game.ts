@@ -100,3 +100,42 @@ export function checkHit(ships: Ship[], x: number, y: number): boolean {
   }
   return false;
 }
+
+// Count ship cells in 3x3 area around (centerX, centerY), clamped to grid bounds
+export function sonarCount(ships: Ship[], centerX: number, centerY: number): number {
+  const minX = Math.max(0, centerX - 1);
+  const maxX = Math.min(GRID_SIZE - 1, centerX + 1);
+  const minY = Math.max(0, centerY - 1);
+  const maxY = Math.min(GRID_SIZE - 1, centerY + 1);
+
+  const shipCellSet = new Set<string>();
+  for (const ship of ships) {
+    for (const [cx, cy] of getShipCells(ship)) {
+      shipCellSet.add(`${cx},${cy}`);
+    }
+  }
+
+  let count = 0;
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      if (shipCellSet.has(`${x},${y}`)) count++;
+    }
+  }
+  return count;
+}
+
+// Get all cells in the 3x3 sonar area around a center point
+export function getSonarCells(centerX: number, centerY: number): string[] {
+  const minX = Math.max(0, centerX - 1);
+  const maxX = Math.min(GRID_SIZE - 1, centerX + 1);
+  const minY = Math.max(0, centerY - 1);
+  const maxY = Math.min(GRID_SIZE - 1, centerY + 1);
+
+  const cells: string[] = [];
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      cells.push(`${x},${y}`);
+    }
+  }
+  return cells;
+}

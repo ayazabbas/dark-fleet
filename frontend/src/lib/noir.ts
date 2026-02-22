@@ -3,6 +3,7 @@ import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
 
 let boardCircuit: any = null;
 let shotCircuit: any = null;
+let sonarCircuit: any = null;
 
 async function loadCircuit(name: string) {
   const res = await fetch(`/circuits/${name}.json`);
@@ -12,6 +13,7 @@ async function loadCircuit(name: string) {
 export async function initCircuits() {
   if (!boardCircuit) boardCircuit = await loadCircuit('board');
   if (!shotCircuit) shotCircuit = await loadCircuit('shot');
+  if (!sonarCircuit) sonarCircuit = await loadCircuit('sonar');
 }
 
 export interface BoardProofResult {
@@ -20,6 +22,10 @@ export interface BoardProofResult {
 }
 
 export interface ShotProofResult {
+  proof: Uint8Array;
+}
+
+export interface SonarProofResult {
   proof: Uint8Array;
 }
 
@@ -108,4 +114,32 @@ export async function verifyShotProof(
   } finally {
     await backend.destroy();
   }
+}
+
+// Generate a sonar proof — proves count of ship cells in 3x3 area
+export async function generateSonarProof(
+  ships: string[],
+  boardHash: string,
+  centerX: number,
+  centerY: number,
+  count: number
+): Promise<SonarProofResult> {
+  await initCircuits();
+
+  const backend = new BarretenbergBackend(sonarCircuit);
+  const noir = new Noir(sonarCircuit);
+
+  const { witness } = await noir.execute({
+    ships,
+    board_hash: boardHash,
+    center_x: centerX.toString(),
+    center_y: centerY.toString(),
+    count: count.toString(),
+  });
+
+  const proof = await backend.generateProof(witness);
+
+  await backend.destroy();
+
+  return { proof: proof.proof };
 }

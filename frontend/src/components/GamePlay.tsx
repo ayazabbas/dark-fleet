@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import Board from './Board';
+import type { SonarResult } from './Board';
 import type { Ship } from '../lib/game';
-import { getShipCells, checkHit, TOTAL_SHIP_CELLS } from '../lib/game';
+import { getShipCells, checkHit, sonarCount, getSonarCells, TOTAL_SHIP_CELLS } from '../lib/game';
 
 interface GamePlayProps {
   currentPlayer: 1 | 2;
@@ -9,6 +10,7 @@ interface GamePlayProps {
   p2Ships: Ship[];
   onGameOver: (winner: 1 | 2) => void;
   onShotFired: (shooter: 1 | 2, x: number, y: number, hit: boolean) => void;
+  onSonarUsed: (user: 1 | 2, centerX: number, centerY: number, count: number) => void;
 }
 
 interface ShotRecord {
@@ -23,6 +25,7 @@ export default function GamePlay({
   p2Ships,
   onGameOver,
   onShotFired,
+  onSonarUsed,
 }: GamePlayProps) {
   const [turn, setTurn] = useState<1 | 2>(initialPlayer);
   const [p1Shots, setP1Shots] = useState<ShotRecord[]>([]);
@@ -30,6 +33,14 @@ export default function GamePlay({
   const [message, setMessage] = useState('');
   const [transitioning, setTransitioning] = useState(false);
   const [showTransitionScreen, setShowTransitionScreen] = useState(false);
+  const [sonarMode, setSonarMode] = useState(false);
+  const [sonarHover, setSonarHover] = useState<{ x: number; y: number } | null>(null);
+  const [p1TurnsTaken, setP1TurnsTaken] = useState(0);
+  const [p2TurnsTaken, setP2TurnsTaken] = useState(0);
+  const [p1SonarUsed, setP1SonarUsed] = useState(false);
+  const [p2SonarUsed, setP2SonarUsed] = useState(false);
+  const [p1SonarResults, setP1SonarResults] = useState<SonarResult[]>([]);
+  const [p2SonarResults, setP2SonarResults] = useState<SonarResult[]>([]);
 
   const p1ShipCells = useMemo(() => {
     const set = new Set<string>();
@@ -63,8 +74,17 @@ export default function GamePlay({
   const p1HitCount = p1Shots.filter(s => s.hit).length;
   const p2HitCount = p2Shots.filter(s => s.hit).length;
 
+  const turnsTaken = turn === 1 ? p1TurnsTaken : p2TurnsTaken;
+  const sonarUsed = turn === 1 ? p1SonarUsed : p2SonarUsed;
+  const sonarAvailable = !sonarUsed && turnsTaken > 0 && turnsTaken % 3 === 0;
+
   const handleShot = (x: number, y: number) => {
     if (transitioning) return;
+
+    if (sonarMode) {
+      handleSonar(x, y);
+      return;
+    }
 
     const targetShips = turn === 1 ? p2Ships : p1Ships;
     const currentShots = turn === 1 ? p1Shots : p2Shots;
@@ -74,7 +94,9 @@ export default function GamePlay({
     const hit = checkHit(targetShips, x, y);
     const shot: ShotRecord = { x, y, hit };
 
+    // Increment turns
     if (turn === 1) {
+      setP1TurnsTaken(p1TurnsTaken + 1);
       const newShots = [...p1Shots, shot];
       setP1Shots(newShots);
       const totalHits = newShots.filter(s => s.hit).length;
@@ -84,6 +106,7 @@ export default function GamePlay({
         return;
       }
     } else {
+      setP2TurnsTaken(p2TurnsTaken + 1);
       const newShots = [...p2Shots, shot];
       setP2Shots(newShots);
       const totalHits = newShots.filter(s => s.hit).length;
@@ -104,13 +127,46 @@ export default function GamePlay({
     }, 1200);
   };
 
+  const handleSonar = (centerX: number, centerY: number) => {
+    const targetShips = turn === 1 ? p2Ships : p1Ships;
+    const count = sonarCount(targetShips, centerX, centerY);
+    const cells = new Set(getSonarCells(centerX, centerY));
+
+    const result: SonarResult = { cells, count, centerX, centerY };
+
+    if (turn === 1) {
+      setP1SonarResults([...p1SonarResults, result]);
+      setP1SonarUsed(true);
+      setP1TurnsTaken(p1TurnsTaken + 1);
+    } else {
+      setP2SonarResults([...p2SonarResults, result]);
+      setP2SonarUsed(true);
+      setP2TurnsTaken(p2TurnsTaken + 1);
+    }
+
+    onSonarUsed(turn, centerX, centerY, count);
+    setSonarMode(false);
+    setSonarHover(null);
+
+    const colorWord = count === 0 ? 'CLEAR' : count <= 2 ? 'WARM' : 'HOT';
+    setMessage(`SONAR: ${count} ship cells detected — ${colorWord}!`);
+    setTransitioning(true);
+
+    setTimeout(() => {
+      setMessage('');
+      setShowTransitionScreen(true);
+    }, 1800);
+  };
+
   const handleContinue = () => {
     setTurn(turn === 1 ? 2 : 1);
     setShowTransitionScreen(false);
     setTransitioning(false);
+    setSonarMode(false);
+    setSonarHover(null);
   };
 
-  // Turn transition screen (prevents seeing opponent's board)
+  // Turn transition screen
   if (showTransitionScreen) {
     const nextPlayer = turn === 1 ? 2 : 1;
     return (
@@ -133,6 +189,12 @@ export default function GamePlay({
   const myReceivedMisses = turn === 1 ? p2Attack.misses : p1Attack.misses;
   const myAttackHits = turn === 1 ? p1Attack.hits : p2Attack.hits;
   const myAttackMisses = turn === 1 ? p1Attack.misses : p2Attack.misses;
+  const mySonarResults = turn === 1 ? p1SonarResults : p2SonarResults;
+
+  // Build sonar hover highlight
+  const sonarHoverCells = sonarMode && sonarHover
+    ? new Set(getSonarCells(sonarHover.x, sonarHover.y))
+    : undefined;
 
   return (
     <div className="flex flex-col items-center gap-5">
@@ -140,7 +202,9 @@ export default function GamePlay({
         <h2 className="text-2xl font-black text-cyan-300">
           Player {turn}'s Turn
         </h2>
-        <p className="text-slate-500 text-sm mt-1">Select a target on Enemy Waters</p>
+        <p className="text-slate-500 text-sm mt-1">
+          {sonarMode ? 'Select sonar center on Enemy Waters' : 'Select a target on Enemy Waters'}
+        </p>
       </div>
 
       {/* Score bar */}
@@ -151,7 +215,6 @@ export default function GamePlay({
             <span className={p1HitCount > 0 ? 'text-red-400' : 'text-slate-500'}>{p1HitCount}</span>
             <span className="text-slate-600">/{TOTAL_SHIP_CELLS}</span>
           </div>
-          {/* Hit progress bar */}
           <div className="w-24 h-1 bg-slate-700 rounded-full mt-1">
             <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${(p1HitCount / TOTAL_SHIP_CELLS) * 100}%` }} />
           </div>
@@ -169,9 +232,43 @@ export default function GamePlay({
         </div>
       </div>
 
-      {/* Hit/Miss message */}
+      {/* Sonar button */}
+      <div className="flex gap-3 items-center">
+        {sonarAvailable && !transitioning && (
+          <button
+            className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+              sonarMode
+                ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/50'
+                : 'bg-slate-800 text-violet-400 border border-violet-700 hover:bg-violet-900/30'
+            }`}
+            onClick={() => {
+              setSonarMode(!sonarMode);
+              setSonarHover(null);
+            }}
+          >
+            {sonarMode ? 'Cancel Sonar' : 'Use Sonar Ping'}
+          </button>
+        )}
+        {sonarAvailable && !transitioning && !sonarMode && (
+          <span className="text-xs text-violet-400/60">3x3 area scan available</span>
+        )}
+        {!sonarAvailable && !sonarUsed && !transitioning && (
+          <span className="text-xs text-slate-600">
+            Sonar available in {turnsTaken === 0 ? 3 : 3 - (turnsTaken % 3)} turns
+          </span>
+        )}
+        {sonarUsed && !transitioning && (
+          <span className="text-xs text-slate-600">Sonar used</span>
+        )}
+      </div>
+
+      {/* Hit/Miss/Sonar message */}
       {message && (
-        <div className={`text-3xl font-black ${message.includes('HIT') ? 'text-red-400 animate-bounce' : 'text-slate-500'}`}>
+        <div className={`text-3xl font-black ${
+          message.includes('HIT') ? 'text-red-400 animate-bounce'
+          : message.includes('SONAR') ? 'text-violet-400'
+          : 'text-slate-500'
+        }`}>
           {message}
         </div>
       )}
@@ -192,8 +289,12 @@ export default function GamePlay({
           misses={myAttackMisses}
           showShips={false}
           onCellClick={handleShot}
+          onCellHover={(x, y) => sonarMode && setSonarHover({ x, y })}
+          onMouseLeave={() => setSonarHover(null)}
           disabled={transitioning}
           label="Enemy Waters"
+          sonarHighlight={sonarHoverCells}
+          sonarResults={mySonarResults}
         />
       </div>
     </div>

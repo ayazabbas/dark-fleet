@@ -3,7 +3,7 @@ import ShipPlacement from './components/ShipPlacement';
 import GamePlay from './components/GamePlay';
 import type { Ship, GamePhase } from './lib/game';
 import { shipsToCircuitInput } from './lib/game';
-import { generateBoardProof, generateShotProof } from './lib/noir';
+import { generateBoardProof, generateShotProof, generateSonarProof } from './lib/noir';
 
 const CONTRACT_ADDRESS = 'CBOJUXTKNDDK6A6IT675ORR5LLAWYIMAGSPIFYESSWYXGXOVHRLEPN5D';
 const EXPLORER_URL = `https://lab.stellar.org/r/testnet/contract/${CONTRACT_ADDRESS}`;
@@ -83,6 +83,23 @@ function App() {
         addLog(`Shot proof verified for (${x},${y})`);
       } catch {
         addLog(`Shot proof skipped for (${x},${y})`);
+      }
+    }
+  };
+
+  const handleSonarUsed = async (user: 1 | 2, centerX: number, centerY: number, count: number) => {
+    const defenderShips = user === 1 ? p2Ships : p1Ships;
+    const defenderHash = user === 1 ? p2BoardHash : p1BoardHash;
+
+    addLog(`P${user} sonar ping at (${centerX},${centerY}) → ${count} ship cells`);
+
+    if (defenderHash && !defenderHash.startsWith('demo-')) {
+      try {
+        const circuitInput = shipsToCircuitInput(defenderShips);
+        await generateSonarProof(circuitInput, defenderHash, centerX, centerY, count);
+        addLog(`Sonar proof verified for (${centerX},${centerY}) count=${count}`);
+      } catch {
+        addLog(`Sonar proof skipped for (${centerX},${centerY})`);
       }
     }
   };
@@ -232,6 +249,7 @@ function App() {
             p2Ships={p2Ships}
             onGameOver={handleGameOver}
             onShotFired={handleShotFired}
+            onSonarUsed={handleSonarUsed}
           />
         )}
 
