@@ -14,6 +14,10 @@ import {
   type OnChainGame,
 } from '../lib/stellar';
 
+const COL_LABELS = 'ABCDEFGHIJ';
+/** Convert numeric x,y to board notation like "A1", "C5" */
+const coord = (x: number, y: number) => `${COL_LABELS[x] ?? x}${y + 1}`;
+
 interface OnlineBattleProps {
   gameId: number;
   playerNum: 1 | 2;
@@ -106,7 +110,7 @@ export default function OnlineBattle({
       ));
       setMessage(wasHit ? 'DIRECT HIT!' : 'Miss...');
       setTimeout(() => setMessage(''), 1500);
-      addLog(`Shot result: (${x},${y}) -> ${wasHit ? 'HIT' : 'MISS'}`);
+      addLog(`Shot at ${coord(x,y)} -> ${wasHit ? 'HIT' : 'MISS'}`);
       pendingShotRef.current = null;
       lastStableTurnRef.current = null; // Allow turn display to update
     }
@@ -120,7 +124,7 @@ export default function OnlineBattle({
       const colorWord = count === 0 ? 'CLEAR' : count <= 2 ? 'WARM' : 'HOT';
       setMessage(`SONAR: ${count} ship cells — ${colorWord}!`);
       setTimeout(() => setMessage(''), 2000);
-      addLog(`Sonar result: ${count} cells at (${centerX},${centerY})`);
+      addLog(`Sonar at ${coord(centerX,centerY)}: ${count} cells`);
       pendingSonarRef.current = null;
       lastStableTurnRef.current = null; // Allow turn display to update
     }
@@ -161,13 +165,13 @@ export default function OnlineBattle({
     try {
       const hit = checkHit(myShips, g.lastShotX, g.lastShotY);
       setOpponentShots(prev => [...prev, { x: g.lastShotX, y: g.lastShotY, hit }]);
-      setStatusMsg(`Opponent fired at (${g.lastShotX},${g.lastShotY}) — ${hit ? 'HIT!' : 'Miss.'} Reporting...`);
-      addLog(`Opponent fires at (${g.lastShotX},${g.lastShotY}) -> ${hit ? 'HIT' : 'MISS'}`);
+      setStatusMsg(`Opponent fired at ${coord(g.lastShotX,g.lastShotY)} — ${hit ? 'HIT!' : 'Miss.'} Reporting...`);
+      addLog(`Opponent fires at ${coord(g.lastShotX,g.lastShotY)} -> ${hit ? 'HIT' : 'MISS'}`);
 
       try {
         const ci = shipsToCircuitInput(myShips);
         await generateShotProof(ci, myBoardHash, g.lastShotX, g.lastShotY, hit);
-        addLog(`Shot proof verified for (${g.lastShotX},${g.lastShotY})`);
+        addLog(`Shot proof verified for ${coord(g.lastShotX,g.lastShotY)}`);
       } catch {
         addLog(`Shot proof generation skipped`);
       }
@@ -189,13 +193,13 @@ export default function OnlineBattle({
 
     try {
       const count = sonarCount(myShips, g.sonarCenterX, g.sonarCenterY);
-      setStatusMsg(`Opponent sonar at (${g.sonarCenterX},${g.sonarCenterY}) — ${count} cells. Reporting...`);
-      addLog(`Opponent sonar at (${g.sonarCenterX},${g.sonarCenterY}) -> ${count} cells`);
+      setStatusMsg(`Opponent sonar at ${coord(g.sonarCenterX,g.sonarCenterY)} — ${count} cells. Reporting...`);
+      addLog(`Opponent sonar at ${coord(g.sonarCenterX,g.sonarCenterY)} -> ${count} cells`);
 
       try {
         const ci = shipsToCircuitInput(myShips);
         await generateSonarProof(ci, myBoardHash, g.sonarCenterX, g.sonarCenterY, count);
-        addLog(`Sonar proof verified for (${g.sonarCenterX},${g.sonarCenterY})`);
+        addLog(`Sonar proof verified for ${coord(g.sonarCenterX,g.sonarCenterY)}`);
       } catch {
         addLog(`Sonar proof generation skipped`);
       }
@@ -217,7 +221,7 @@ export default function OnlineBattle({
     if (myShots.some(s => s.x === x && s.y === y)) return;
 
     setBusy(true);
-    setStatusMsg(`Firing at (${x},${y})...`);
+    setStatusMsg(`Firing at ${coord(x,y)}...`);
 
     const myHits = playerNum === 1 ? game.p1Hits : game.p2Hits;
     pendingShotRef.current = { x, y, prevHits: myHits };
@@ -225,7 +229,7 @@ export default function OnlineBattle({
 
     try {
       const txHash = await takeShotOnChain(gameId, walletAddress, x, y);
-      addLog(`Fired at (${x},${y})`, txHash);
+      addLog(`Fired at ${coord(x,y)}`, txHash);
       setStatusMsg('Waiting for opponent to report result...');
     } catch (err: unknown) {
       setMyShots(prev => prev.filter(s => !(s.x === x && s.y === y && s.hit === null)));
@@ -244,12 +248,12 @@ export default function OnlineBattle({
     setBusy(true);
     setSonarMode(false);
     setSonarHover(null);
-    setStatusMsg(`Using sonar at (${centerX},${centerY})...`);
+    setStatusMsg(`Using sonar at ${coord(centerX,centerY)}...`);
     pendingSonarRef.current = { centerX, centerY };
 
     try {
       const txHash = await useSonarOnChain(gameId, walletAddress, centerX, centerY);
-      addLog(`Used sonar at (${centerX},${centerY})`, txHash);
+      addLog(`Used sonar at ${coord(centerX,centerY)}`, txHash);
       setStatusMsg('Waiting for opponent to report sonar result...');
     } catch (err: unknown) {
       pendingSonarRef.current = null;
