@@ -1,6 +1,6 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contractimpl, contracttype, Address, BytesN, Env, IntoVal, Symbol, Val, Vec,
+    contract, contractimpl, contracttype, Address, Bytes, BytesN, Env, IntoVal, Symbol, Val, Vec,
 };
 
 #[contracttype]
@@ -35,6 +35,8 @@ pub struct Game {
     pub sonar_center_x: u32,
     pub sonar_center_y: u32,
     pub last_sonar_count: u32,
+    pub last_shot_proof: Bytes,
+    pub last_sonar_proof: Bytes,
 }
 
 #[contract]
@@ -86,6 +88,8 @@ impl BattleshipContract {
             sonar_center_x: 0,
             sonar_center_y: 0,
             last_sonar_count: 0,
+            last_shot_proof: Bytes::new(&env),
+            last_sonar_proof: Bytes::new(&env),
         };
 
         env.storage()
@@ -207,8 +211,8 @@ impl BattleshipContract {
 
     /// Report whether the last shot was a hit or miss.
     /// Called by the DEFENDER (the player who was shot at).
-    /// In a full ZK version, this would require a proof.
-    pub fn report_result(env: Env, game_id: u32, player: Address, hit: bool) {
+    /// Accepts a ZK proof (Bytes) that is stored on-chain for opponent verification.
+    pub fn report_result(env: Env, game_id: u32, player: Address, hit: bool, proof: Bytes) {
         player.require_auth();
 
         let mut game: Game = env
@@ -235,6 +239,7 @@ impl BattleshipContract {
         }
 
         game.awaiting_report = false;
+        game.last_shot_proof = proof;
         // Swap turns
         game.turn = if game.turn == 1 { 2 } else { 1 };
 
@@ -356,7 +361,8 @@ impl BattleshipContract {
     }
 
     /// Report sonar result — opponent reports count of ship cells in 3x3 area.
-    pub fn report_sonar(env: Env, game_id: u32, player: Address, count: u32) {
+    /// Accepts a ZK proof (Bytes) that is stored on-chain for opponent verification.
+    pub fn report_sonar(env: Env, game_id: u32, player: Address, count: u32, proof: Bytes) {
         player.require_auth();
 
         let mut game: Game = env
@@ -377,6 +383,7 @@ impl BattleshipContract {
 
         game.last_sonar_count = count;
         game.awaiting_sonar = false;
+        game.last_sonar_proof = proof;
         // Swap turns
         game.turn = if game.turn == 1 { 2 } else { 1 };
 
@@ -406,7 +413,7 @@ impl BattleshipContract {
 mod test {
     use super::*;
     use soroban_sdk::testutils::Address as _;
-    use soroban_sdk::Env;
+    use soroban_sdk::{Bytes, Env};
 
     fn setup_game(env: &Env) -> (Address, Address, Address, u32) {
         let contract_id = env.register(BattleshipContract, ());
@@ -487,7 +494,8 @@ mod test {
         assert!(game.awaiting_report);
 
         // Player 2 reports hit
-        client.report_result(&game_id, &player2, &true);
+        let empty_proof = Bytes::new(&env);
+        client.report_result(&game_id, &player2, &true, &empty_proof);
         let game = client.get_game(&game_id);
         assert_eq!(game.p1_hits, 1);
         assert_eq!(game.turn, 2); // Now player 2's turn
@@ -497,7 +505,7 @@ mod test {
         client.take_shot(&game_id, &player2, &5, &6);
 
         // Player 1 reports miss
-        client.report_result(&game_id, &player1, &false);
+        client.report_result(&game_id, &player1, &false, &empty_proof);
         let game = client.get_game(&game_id);
         assert_eq!(game.p2_hits, 0);
         assert_eq!(game.turn, 1); // Back to player 1
@@ -517,16 +525,17 @@ mod test {
         client.commit_board(&game_id, &player2, &hash2);
 
         // Simulate 17 hits by player 1 (all ships sunk)
+        let empty_proof = Bytes::new(&env);
         for i in 0..17u32 {
             // Player 1 shoots
             client.take_shot(&game_id, &player1, &(i % 10), &(i / 10));
             // Player 2 reports hit
-            client.report_result(&game_id, &player2, &true);
+            client.report_result(&game_id, &player2, &true, &empty_proof);
 
             // Player 2 shoots (misses)
             client.take_shot(&game_id, &player2, &9, &9);
             // Player 1 reports miss
-            client.report_result(&game_id, &player1, &false);
+            client.report_result(&game_id, &player1, &false, &empty_proof);
         }
 
         let game = client.get_game(&game_id);
@@ -575,18 +584,20 @@ mod test {
     }
 
     fn start_game_and_play_turns(
+        env: &Env,
         client: &BattleshipContractClient,
         game_id: &u32,
         player1: &Address,
         player2: &Address,
         turns: u32,
     ) {
+        let empty_proof = Bytes::new(env);
         // Play `turns` rounds (each round = p1 shoots + p2 shoots)
         for i in 0..turns {
             client.take_shot(game_id, player1, &(i % 10), &(i / 10));
-            client.report_result(game_id, player2, &false);
+            client.report_result(game_id, player2, &false, &empty_proof);
             client.take_shot(game_id, player2, &(i % 10), &(i / 10));
-            client.report_result(game_id, player1, &false);
+            client.report_result(game_id, player1, &false, &empty_proof);
         }
     }
 
@@ -607,7 +618,7 @@ mod test {
         assert!(!client.sonar_available(&game_id, &player1));
 
         // Play 3 rounds
-        start_game_and_play_turns(&client, &game_id, &player1, &player2, 3);
+        start_game_and_play_turns(&env, &client, &game_id, &player1, &player2, 3);
 
         // Now it's player 1's turn with 3 turns taken → sonar available
         assert!(client.sonar_available(&game_id, &player1));
@@ -627,7 +638,7 @@ mod test {
         client.commit_board(&game_id, &player2, &hash2);
 
         // Play 3 rounds so p1 has 3 turns
-        start_game_and_play_turns(&client, &game_id, &player1, &player2, 3);
+        start_game_and_play_turns(&env, &client, &game_id, &player1, &player2, 3);
 
         // Player 1 uses sonar
         client.use_sonar(&game_id, &player1, &5, &5);
@@ -637,7 +648,8 @@ mod test {
         assert_eq!(game.sonar_center_y, 5);
 
         // Player 2 reports sonar count
-        client.report_sonar(&game_id, &player2, &3);
+        let empty_proof = Bytes::new(&env);
+        client.report_sonar(&game_id, &player2, &3, &empty_proof);
         let game = client.get_game(&game_id);
         assert!(!game.awaiting_sonar);
         assert_eq!(game.last_sonar_count, 3);
@@ -678,15 +690,16 @@ mod test {
         client.commit_board(&game_id, &player2, &hash2);
 
         // Play 3 rounds, use sonar
-        start_game_and_play_turns(&client, &game_id, &player1, &player2, 3);
+        start_game_and_play_turns(&env, &client, &game_id, &player1, &player2, 3);
         // p1_turns=3, turn=1 → sonar available
+        let empty_proof = Bytes::new(&env);
         client.use_sonar(&game_id, &player1, &5, &5);
-        client.report_sonar(&game_id, &player2, &2);
+        client.report_sonar(&game_id, &player2, &2, &empty_proof);
         // p1_turns=4, p1_sonar_used=true, turn=2
 
         // Get back to p1's turn: p2 shoots, p1 reports
         client.take_shot(&game_id, &player2, &8, &8);
-        client.report_result(&game_id, &player1, &false);
+        client.report_result(&game_id, &player1, &false, &empty_proof);
         // turn=1, p1_turns=4
 
         // Try sonar again — should fail with "sonar already used"

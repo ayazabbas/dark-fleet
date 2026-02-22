@@ -3,7 +3,7 @@ import Board from './Board';
 import type { SonarResult } from './Board';
 import type { Ship } from '../lib/game';
 import { checkHit, getShipCells, shipsToCircuitInput, sonarCount, getSonarCells, TOTAL_SHIP_CELLS } from '../lib/game';
-import { generateShotProof, generateSonarProof } from '../lib/noir';
+import { generateShotProof, generateSonarProof, verifyShotProof, verifySonarProof } from '../lib/noir';
 import {
   takeShot as takeShotOnChain,
   reportResult as reportResultOnChain,
@@ -116,6 +116,22 @@ export default function OnlineBattle({
       setMessage(wasHit ? 'DIRECT HIT!' : 'Miss...');
       setTimeout(() => setMessage(''), 1500);
       addLog(`Shot at ${coord(x,y)} -> ${wasHit ? 'HIT' : 'MISS'}`);
+
+      // Verify opponent's shot proof (fire-and-forget)
+      if (game.lastShotProof && game.lastShotProof.length > 0) {
+        const opponentBoardHash = playerNum === 1 ? game.boardHash2 : game.boardHash1;
+        const proofHex = game.lastShotProof;
+        const proofBytes = new Uint8Array(proofHex.length / 2);
+        for (let i = 0; i < proofBytes.length; i++) {
+          proofBytes[i] = parseInt(proofHex.substring(i * 2, i * 2 + 2), 16);
+        }
+        verifyShotProof(proofBytes, opponentBoardHash, wasHit, x, y)
+          .then(valid => addLog(valid ? '✅ Opponent proof verified' : '❌ INVALID PROOF — opponent may be cheating!'))
+          .catch(() => addLog('⚠️ Proof verification failed'));
+      } else {
+        addLog('⚠️ Unverified — no proof submitted');
+      }
+
       pendingShotRef.current = null;
       setTurnPhase('opponent-turn');
       return; // Don't process further in this effect run
@@ -131,6 +147,22 @@ export default function OnlineBattle({
       setMessage(`SONAR: ${count} ship cells — ${colorWord}!`);
       setTimeout(() => setMessage(''), 2000);
       addLog(`Sonar at ${coord(centerX,centerY)}: ${count} cells`);
+
+      // Verify opponent's sonar proof (fire-and-forget)
+      if (game.lastSonarProof && game.lastSonarProof.length > 0) {
+        const opponentBoardHash = playerNum === 1 ? game.boardHash2 : game.boardHash1;
+        const proofHex = game.lastSonarProof;
+        const proofBytes = new Uint8Array(proofHex.length / 2);
+        for (let i = 0; i < proofBytes.length; i++) {
+          proofBytes[i] = parseInt(proofHex.substring(i * 2, i * 2 + 2), 16);
+        }
+        verifySonarProof(proofBytes, opponentBoardHash, centerX, centerY, count)
+          .then(valid => addLog(valid ? '✅ Opponent sonar proof verified' : '❌ INVALID PROOF — opponent may be cheating!'))
+          .catch(() => addLog('⚠️ Sonar proof verification failed'));
+      } else {
+        addLog('⚠️ Unverified — no sonar proof submitted');
+      }
+
       pendingSonarRef.current = null;
       setTurnPhase('opponent-turn');
       return;
@@ -182,15 +214,17 @@ export default function OnlineBattle({
       // Phase already set to 'reporting' — status derived from it
       addLog(`Opponent fires at ${coord(g.lastShotX,g.lastShotY)} -> ${hit ? 'HIT' : 'MISS'}`);
 
+      let proofBytes: Uint8Array = new Uint8Array(0);
       try {
         const ci = shipsToCircuitInput(myShips);
-        await generateShotProof(ci, myBoardHash, g.lastShotX, g.lastShotY, hit);
-        addLog(`Shot proof verified for ${coord(g.lastShotX,g.lastShotY)}`);
+        const result = await generateShotProof(ci, myBoardHash, g.lastShotX, g.lastShotY, hit);
+        proofBytes = result.proof;
+        addLog(`Shot proof generated for ${coord(g.lastShotX,g.lastShotY)}`);
       } catch {
         addLog(`Shot proof generation skipped`);
       }
 
-      const txHash = await reportResultOnChain(gameId, walletAddress, hit);
+      const txHash = await reportResultOnChain(gameId, walletAddress, hit, proofBytes);
       addLog(`Reported ${hit ? 'HIT' : 'MISS'} on-chain`, txHash);
       setTurnPhase('my-turn');
     } catch (err: unknown) {
@@ -211,15 +245,17 @@ export default function OnlineBattle({
       // Phase already set to 'reporting' — status derived from it
       addLog(`Opponent sonar at ${coord(g.sonarCenterX,g.sonarCenterY)} -> ${count} cells`);
 
+      let proofBytes: Uint8Array = new Uint8Array(0);
       try {
         const ci = shipsToCircuitInput(myShips);
-        await generateSonarProof(ci, myBoardHash, g.sonarCenterX, g.sonarCenterY, count);
-        addLog(`Sonar proof verified for ${coord(g.sonarCenterX,g.sonarCenterY)}`);
+        const result = await generateSonarProof(ci, myBoardHash, g.sonarCenterX, g.sonarCenterY, count);
+        proofBytes = result.proof;
+        addLog(`Sonar proof generated for ${coord(g.sonarCenterX,g.sonarCenterY)}`);
       } catch {
         addLog(`Sonar proof generation skipped`);
       }
 
-      const txHash = await reportSonarOnChain(gameId, walletAddress, count);
+      const txHash = await reportSonarOnChain(gameId, walletAddress, count, proofBytes);
       addLog(`Reported sonar count=${count} on-chain`, txHash);
       setTurnPhase('my-turn');
     } catch (err: unknown) {

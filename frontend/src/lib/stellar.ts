@@ -143,6 +143,8 @@ export interface OnChainGame {
   sonarCenterX: number;
   sonarCenterY: number;
   lastSonarCount: number;
+  lastShotProof: string;
+  lastSonarProof: string;
 }
 
 function decodeGame(val: StellarSdk.xdr.ScVal): OnChainGame {
@@ -169,6 +171,8 @@ function decodeGame(val: StellarSdk.xdr.ScVal): OnChainGame {
     sonarCenterX: Number(native.sonar_center_x),
     sonarCenterY: Number(native.sonar_center_y),
     lastSonarCount: Number(native.last_sonar_count),
+    lastShotProof: (native.last_shot_proof as string) ?? '',
+    lastSonarProof: (native.last_sonar_proof as string) ?? '',
   };
 }
 
@@ -240,12 +244,14 @@ export async function takeShot(
 export async function reportResult(
   gameId: number,
   player: string,
-  hit: boolean
+  hit: boolean,
+  proof: Uint8Array = new Uint8Array(0)
 ): Promise<string> {
   const params = [
     StellarSdk.nativeToScVal(gameId, { type: 'u32' }),
     new StellarSdk.Address(player).toScVal(),
     StellarSdk.nativeToScVal(hit, { type: 'bool' }),
+    StellarSdk.nativeToScVal(Buffer.from(proof), { type: 'bytes' }),
   ];
   return (await buildAndSendTx(player, 'report_result', params)).hash;
 }
@@ -268,12 +274,14 @@ export async function useSonar(
 export async function reportSonar(
   gameId: number,
   player: string,
-  count: number
+  count: number,
+  proof: Uint8Array = new Uint8Array(0)
 ): Promise<string> {
   const params = [
     StellarSdk.nativeToScVal(gameId, { type: 'u32' }),
     new StellarSdk.Address(player).toScVal(),
     StellarSdk.nativeToScVal(count, { type: 'u32' }),
+    StellarSdk.nativeToScVal(Buffer.from(proof), { type: 'bytes' }),
   ];
   return (await buildAndSendTx(player, 'report_sonar', params)).hash;
 }

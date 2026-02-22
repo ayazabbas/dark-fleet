@@ -64,9 +64,9 @@ The Soroban contract (`contracts/battleship/`) manages the full game lifecycle:
 - `join_game(game_id, player2)` — Join an existing game with a game code
 - `commit_board(game_id, player, board_hash)` — Submit board hash commitment
 - `take_shot(game_id, player, x, y)` — Fire a shot (must be your turn)
-- `report_result(game_id, player, hit)` — Report if the shot was a hit/miss
+- `report_result(game_id, player, hit, proof)` — Report hit/miss with ZK proof stored on-chain
 - `use_sonar(game_id, player, center_x, center_y)` — Use sonar ping instead of a shot (every 3 turns)
-- `report_sonar(game_id, player, count)` — Report sonar result (opponent proves count)
+- `report_sonar(game_id, player, count, proof)` — Report sonar count with ZK proof stored on-chain
 - `claim_victory(game_id, player)` — Claim win after sinking all ships (17 hits)
 
 Integrates with the **Stellar Game Hub** contract (`CB4VZAT2U3UC6XFK3N23SKRF2NDCMP3QHJYMCHHFMZO7MRQO6DQ2EMYG`) via `start_game()` and `end_game()` calls.
@@ -79,17 +79,37 @@ Integrates with the **Stellar Game Hub** contract (`CB4VZAT2U3UC6XFK3N23SKRF2NDC
 - In-browser ZK proof generation via `@noir-lang/noir_js` + `@noir-lang/backend_barretenberg`
 - On-chain battle: every shot, report, and sonar is a Stellar transaction
 - Auto-reporting: opponent actions detected via polling, ZK proofs generated and reported automatically
+- **Cross-verification**: opponent's browser fetches and verifies ZK proofs from on-chain state in real time
 - Proof & transaction log with StellarExpert explorer links
 - Dark theme with Tailwind CSS
+
+### Trust Model & Anti-Cheat
+
+Dark Fleet uses **on-chain proof storage + client-side cross-verification** to ensure fair play:
+
+1. **Proof submission** — When a player reports a shot result (hit/miss) or sonar count, their browser generates a ZK proof and submits it alongside the report to the Soroban contract. The proof is stored as `Bytes` in the contract's game state.
+2. **Cross-verification** — The opponent's browser fetches the proof from the contract state and verifies it client-side using the Barretenberg WASM verifier. If the proof is invalid, a cheating alert is displayed.
+3. **Public auditability** — All proofs are stored on-chain and can be fetched and verified by anyone via `get_game(game_id)`.
+
+```
+P1 fires → P2 generates ZK proof → report_result(hit, proof) on-chain
+                                        ↓
+                            P1 fetches proof from contract
+                            P1 verifies proof in-browser
+                                        ↓
+                               ✅ Valid / ❌ Invalid
+```
+
+**Future work:** On-chain proof verification (contract auto-rejects invalid proofs) requires a Soroban ZK verifier contract.
 
 ## Deployed on Stellar Testnet
 
 The game contract is live on Stellar testnet:
 
-- **Contract Address**: `CBOJUXTKNDDK6A6IT675ORR5LLAWYIMAGSPIFYESSWYXGXOVHRLEPN5D`
-- **Explorer**: [View on Stellar Lab](https://lab.stellar.org/r/testnet/contract/CBOJUXTKNDDK6A6IT675ORR5LLAWYIMAGSPIFYESSWYXGXOVHRLEPN5D)
+- **Contract Address**: `<to be updated after redeploy with proof storage>`
+- **Explorer**: View on [Stellar Lab](https://lab.stellar.org/) or [StellarExpert](https://stellar.expert/explorer/testnet/)
 
-All core contract functions have been tested on testnet: `new_game`, `commit_board`, and `take_shot` are working end-to-end.
+All core contract functions have been tested on testnet: `new_game`, `commit_board`, `take_shot`, `report_result` (with proof), and `report_sonar` (with proof) are working end-to-end.
 
 ## Quick Start
 
@@ -205,7 +225,7 @@ Smart Contract: 10 tests passed
 
 - **Pedersen hash** for board commitments — native to Noir circuits, efficient and ZK-friendly
 - **Board hash as circuit output** — the board circuit computes and returns the hash, eliminating the need for external hash computation in the frontend
-- **Off-chain proof verification** — proofs are generated and verified in the browser for the hackathon MVP; on-chain UltraHonk verification is the natural next step
+- **On-chain proof storage + client-side cross-verification** — ZK proofs are stored on-chain with every report and verified by the opponent's browser in real time; on-chain UltraHonk verification is the natural next step
 - **2-player on-chain multiplayer** — each player connects via Freighter wallet in separate browser windows; game state synced via Soroban contract polling
 - **Sonar ping (unique ZK mechanic)** — most ZK battleship implementations only prove binary hit/miss; our sonar circuit proves a *count* of ship cells in a region, demonstrating ZK's ability to disclose partial information without revealing exact positions
 

@@ -116,6 +116,29 @@ export async function verifyShotProof(
   }
 }
 
+// Verify a sonar proof
+export async function verifySonarProof(
+  proof: Uint8Array,
+  boardHash: string,
+  centerX: number,
+  centerY: number,
+  count: number
+): Promise<boolean> {
+  await initCircuits();
+
+  const backend = new BarretenbergBackend(sonarCircuit);
+
+  try {
+    const verified = await backend.verifyProof({
+      proof,
+      publicInputs: [boardHash, centerX.toString(), centerY.toString(), count.toString()],
+    });
+    return verified;
+  } finally {
+    await backend.destroy();
+  }
+}
+
 // Generate a sonar proof — proves count of ship cells in 3x3 area
 export async function generateSonarProof(
   ships: string[],

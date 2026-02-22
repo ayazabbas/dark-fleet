@@ -45,7 +45,7 @@ export default function Docs() {
 {`  Browser A (Player 1)              Browser B (Player 2)
   ┌──────────────────┐              ┌──────────────────┐
   │  React Frontend  │              │  React Frontend  │
-  │  + Noir WASM     │              │  + Noir WASM     │
+  │  + Noir WASM     │◄─── verify ──│  + Noir WASM     │
   │  + Freighter     │              │  + Freighter     │
   └────────┬─────────┘              └────────┬─────────┘
            │                                 │
@@ -54,8 +54,10 @@ export default function Docs() {
            └──┤   Battleship Contract    ├───┘
               │  new_game / join_game    │
               │  commit_board            │
-              │  take_shot / report      │
-              │  use_sonar / report      │
+              │  take_shot               │
+              │  report_result + proof   │
+              │  use_sonar               │
+              │  report_sonar + proof    │
               │  claim_victory           │
               └──────────┬───────────────┘
                          │
@@ -63,6 +65,54 @@ export default function Docs() {
               │     Game Hub Contract    │
               │  (Hackathon registry)    │
               └──────────────────────────┘`}
+          </div>
+        </section>
+
+        {/* Trust Model */}
+        <section className="space-y-4">
+          <h2 className="text-2xl font-black text-cyan-400">Trust Model & Anti-Cheat</h2>
+          <p className="text-slate-400 leading-relaxed">
+            Dark Fleet stores ZK proofs on-chain with every shot and sonar report. When your opponent claims a hit or miss,
+            their browser generates a ZK proof and submits it alongside the report to the Soroban contract. Your browser
+            then fetches the proof from the contract state and verifies it client-side in real time.
+          </p>
+
+          <div className="bg-slate-900 rounded-lg p-6 border border-slate-800 font-mono text-sm text-slate-400 whitespace-pre leading-relaxed">
+{`  Proof Verification Flow:
+
+  P1 fires at P2         P2 generates ZK proof
+       │                        │
+       ▼                        ▼
+  take_shot()  ──────►  report_result(hit, proof)
+  on-chain                 on-chain
+                               │
+                               ▼
+                    P1 fetches proof from contract
+                    P1 verifies proof in-browser
+                               │
+                    ┌──────────┴──────────┐
+                    │                     │
+               ✅ VALID              ❌ INVALID
+          "Proof verified"     "CHEATING DETECTED"`}
+          </div>
+
+          <div className="grid gap-3 mt-4">
+            <div className="bg-slate-900 rounded-lg p-4 border border-emerald-900/50 space-y-1">
+              <h3 className="text-sm font-bold text-emerald-400">What's verified</h3>
+              <ul className="text-xs text-slate-400 space-y-1 list-disc list-inside">
+                <li>Every shot result (hit/miss) is backed by a ZK proof stored on-chain</li>
+                <li>Every sonar count is backed by a ZK proof stored on-chain</li>
+                <li>Opponent's browser verifies proofs client-side in real time</li>
+                <li>Proofs are publicly auditable — anyone can fetch them from the contract state</li>
+              </ul>
+            </div>
+            <div className="bg-slate-900 rounded-lg p-4 border border-amber-900/50 space-y-1">
+              <h3 className="text-sm font-bold text-amber-400">Future work</h3>
+              <ul className="text-xs text-slate-400 space-y-1 list-disc list-inside">
+                <li>On-chain proof verification — contract auto-rejects invalid proofs (requires Soroban ZK verifier)</li>
+                <li>Board commitment proof verified on-chain at game start</li>
+              </ul>
+            </div>
           </div>
         </section>
 
@@ -115,9 +165,9 @@ export default function Docs() {
               { fn: 'join_game(game_id, player2)', desc: 'Join an existing game with the game code.' },
               { fn: 'commit_board(game_id, player, hash)', desc: 'Submit Pedersen hash commitment of ship positions.' },
               { fn: 'take_shot(game_id, player, x, y)', desc: 'Fire a shot at the opponent\'s board (must be your turn).' },
-              { fn: 'report_result(game_id, player, hit)', desc: 'Report whether the last shot was a hit or miss (defender reports).' },
+              { fn: 'report_result(game_id, player, hit, proof)', desc: 'Report hit/miss with ZK proof stored on-chain for verification.' },
               { fn: 'use_sonar(game_id, player, cx, cy)', desc: 'Use sonar ping instead of firing (available every 3 turns, once per game).' },
-              { fn: 'report_sonar(game_id, player, count)', desc: 'Report sonar result — count of ship cells in 3x3 area.' },
+              { fn: 'report_sonar(game_id, player, count, proof)', desc: 'Report sonar count with ZK proof stored on-chain for verification.' },
               { fn: 'claim_victory(game_id, player)', desc: 'Claim win after scoring 17 hits (all ship cells sunk).' },
               { fn: 'get_game(game_id)', desc: 'Read current game state (view function, no tx needed).' },
             ].map(({ fn, desc }) => (

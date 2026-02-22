@@ -143,6 +143,9 @@
                 },
                 {
                   "bool": true
+                },
+                {
+                  "bytes": ""
                 }
               ]
             }
@@ -197,6 +200,9 @@
                 },
                 {
                   "bool": false
+                },
+                {
+                  "bytes": ""
                 }
               ]
             }
@@ -279,6 +285,14 @@
                   },
                   {
                     "key": {
+                      "symbol": "last_shot_proof"
+                    },
+                    "val": {
+                      "bytes": ""
+                    }
+                  },
+                  {
+                    "key": {
                       "symbol": "last_shot_x"
                     },
                     "val": {
@@ -299,6 +313,14 @@
                     },
                     "val": {
                       "u32": 0
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "last_sonar_proof"
+                    },
+                    "val": {
+                      "bytes": ""
                     }
                   },
                   {
