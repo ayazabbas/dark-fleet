@@ -52,8 +52,8 @@ impl BattleshipContract {
         env.storage().instance().set(&DataKey::GameCount, &0u32);
     }
 
-    /// Create a new game between two players. Returns the game/session ID.
-    pub fn new_game(env: Env, player1: Address, player2: Address) -> u32 {
+    /// Create a new game. Player 2 joins later via join_game(). Returns the game/session ID.
+    pub fn new_game(env: Env, player1: Address) -> u32 {
         player1.require_auth();
 
         let mut count: u32 = env
@@ -66,7 +66,7 @@ impl BattleshipContract {
         let zero_hash = BytesN::from_array(&env, &[0u8; 32]);
         let game = Game {
             player1: player1.clone(),
-            player2: player2.clone(),
+            player2: player1.clone(), // sentinel: player2 == player1 means "no opponent yet"
             board_hash1: zero_hash.clone(),
             board_hash2: zero_hash,
             boards_committed: 0,
@@ -96,6 +96,27 @@ impl BattleshipContract {
         count
     }
 
+    /// Join an existing game as player 2. The game must be in setup phase with no player 2 yet.
+    pub fn join_game(env: Env, game_id: u32, player2: Address) {
+        player2.require_auth();
+
+        let mut game: Game = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Game(game_id))
+            .expect("game not found");
+        assert!(game.status == 0, "game not in setup phase");
+
+        assert!(game.player2 == game.player1, "player 2 already joined");
+        assert!(player2 != game.player1, "cannot join your own game");
+
+        game.player2 = player2;
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Game(game_id), &game);
+    }
+
     /// Commit a board hash (Pedersen hash of ship positions).
     /// When both players have committed, the game starts and the hub is notified.
     pub fn commit_board(env: Env, game_id: u32, player: Address, board_hash: BytesN<32>) {
@@ -113,7 +134,7 @@ impl BattleshipContract {
         if player == game.player1 {
             assert!(game.board_hash1 == zero_hash, "board already committed");
             game.board_hash1 = board_hash;
-        } else if player == game.player2 {
+        } else if game.player2 != game.player1 && player == game.player2 {
             assert!(game.board_hash2 == zero_hash, "board already committed");
             game.board_hash2 = board_hash;
         } else {
@@ -394,7 +415,8 @@ mod test {
         let player1 = Address::generate(env);
         let player2 = Address::generate(env);
 
-        let game_id = client.new_game(&player1, &player2);
+        let game_id = client.new_game(&player1);
+        client.join_game(&game_id, &player2);
 
         (contract_id, player1, player2, game_id)
     }
@@ -404,13 +426,21 @@ mod test {
         let env = Env::default();
         env.mock_all_auths();
 
-        let (contract_id, player1, player2, _) = setup_game(&env);
+        let contract_id = env.register(BattleshipContract, ());
         let client = BattleshipContractClient::new(&env, &contract_id);
 
-        let game = client.get_game(&1);
+        let player1 = Address::generate(&env);
+        let player2 = Address::generate(&env);
+
+        let game_id = client.new_game(&player1);
+        let game = client.get_game(&game_id);
         assert_eq!(game.player1, player1);
-        assert_eq!(game.player2, player2);
         assert_eq!(game.status, 0);
+
+        // Player 2 joins
+        client.join_game(&game_id, &player2);
+        let game = client.get_game(&game_id);
+        assert_eq!(game.player2, player2);
     }
 
     #[test]
