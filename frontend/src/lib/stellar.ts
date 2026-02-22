@@ -24,11 +24,16 @@ export async function connectWallet(): Promise<string> {
 }
 
 // --- Transaction helpers ---
+interface TxResult {
+  hash: string;
+  returnValue?: StellarSdk.xdr.ScVal;
+}
+
 async function buildAndSendTx(
   callerAddress: string,
   method: string,
   params: StellarSdk.xdr.ScVal[]
-): Promise<string> {
+): Promise<TxResult> {
   const account = await server.getAccount(callerAddress);
   const contract = new StellarSdk.Contract(CONTRACT_ID);
 
@@ -69,7 +74,18 @@ async function buildAndSendTx(
     throw new Error(`Transaction failed on-chain`);
   }
 
-  return sendResult.hash;
+  // Extract return value if available
+  let returnValue: StellarSdk.xdr.ScVal | undefined;
+  if (getResult.status === 'SUCCESS' && getResult.resultMetaXdr) {
+    try {
+      const meta = getResult.resultMetaXdr;
+      returnValue = meta.v3().sorobanMeta()?.returnValue();
+    } catch {
+      // No return value available
+    }
+  }
+
+  return { hash: sendResult.hash, returnValue };
 }
 
 // --- Read-only call helper ---
@@ -159,16 +175,22 @@ function decodeGame(val: StellarSdk.xdr.ScVal): OnChainGame {
 
 export async function newGame(player1: string): Promise<{ gameId: number; txHash: string }> {
   const params = [new StellarSdk.Address(player1).toScVal()];
-  const txHash = await buildAndSendTx(player1, 'new_game', params);
+  const result = await buildAndSendTx(player1, 'new_game', params);
 
-  // Read the game count to get the new game ID
-  const gameId = await readContract(
-    'game_count',
-    [],
-    (val) => Number(StellarSdk.scValToNative(val))
-  );
+  // Extract game ID from contract return value
+  let gameId: number;
+  if (result.returnValue) {
+    gameId = Number(StellarSdk.scValToNative(result.returnValue));
+  } else {
+    // Fallback: read game_count
+    gameId = await readContract(
+      'game_count',
+      [],
+      (val) => Number(StellarSdk.scValToNative(val))
+    );
+  }
 
-  return { gameId, txHash };
+  return { gameId, txHash: result.hash };
 }
 
 export async function joinGame(gameId: number, player2: string): Promise<string> {
@@ -176,7 +198,7 @@ export async function joinGame(gameId: number, player2: string): Promise<string>
     StellarSdk.nativeToScVal(gameId, { type: 'u32' }),
     new StellarSdk.Address(player2).toScVal(),
   ];
-  return buildAndSendTx(player2, 'join_game', params);
+  return (await buildAndSendTx(player2, 'join_game', params)).hash;
 }
 
 export async function commitBoard(
@@ -195,7 +217,7 @@ export async function commitBoard(
     new StellarSdk.Address(player).toScVal(),
     StellarSdk.nativeToScVal(hashBytes, { type: 'bytes' }),
   ];
-  return buildAndSendTx(player, 'commit_board', params);
+  return (await buildAndSendTx(player, 'commit_board', params)).hash;
 }
 
 export async function takeShot(
@@ -210,7 +232,7 @@ export async function takeShot(
     StellarSdk.nativeToScVal(x, { type: 'u32' }),
     StellarSdk.nativeToScVal(y, { type: 'u32' }),
   ];
-  return buildAndSendTx(player, 'take_shot', params);
+  return (await buildAndSendTx(player, 'take_shot', params)).hash;
 }
 
 export async function reportResult(
@@ -223,7 +245,7 @@ export async function reportResult(
     new StellarSdk.Address(player).toScVal(),
     StellarSdk.nativeToScVal(hit, { type: 'bool' }),
   ];
-  return buildAndSendTx(player, 'report_result', params);
+  return (await buildAndSendTx(player, 'report_result', params)).hash;
 }
 
 export async function useSonar(
@@ -238,7 +260,7 @@ export async function useSonar(
     StellarSdk.nativeToScVal(centerX, { type: 'u32' }),
     StellarSdk.nativeToScVal(centerY, { type: 'u32' }),
   ];
-  return buildAndSendTx(player, 'use_sonar', params);
+  return (await buildAndSendTx(player, 'use_sonar', params)).hash;
 }
 
 export async function reportSonar(
@@ -251,7 +273,7 @@ export async function reportSonar(
     new StellarSdk.Address(player).toScVal(),
     StellarSdk.nativeToScVal(count, { type: 'u32' }),
   ];
-  return buildAndSendTx(player, 'report_sonar', params);
+  return (await buildAndSendTx(player, 'report_sonar', params)).hash;
 }
 
 export async function claimVictory(gameId: number, player: string): Promise<string> {
@@ -259,7 +281,7 @@ export async function claimVictory(gameId: number, player: string): Promise<stri
     StellarSdk.nativeToScVal(gameId, { type: 'u32' }),
     new StellarSdk.Address(player).toScVal(),
   ];
-  return buildAndSendTx(player, 'claim_victory', params);
+  return (await buildAndSendTx(player, 'claim_victory', params)).hash;
 }
 
 export async function getGame(gameId: number): Promise<OnChainGame> {
