@@ -155,8 +155,62 @@ Tasks 4-7 are independent and can be parallelized after Task 3.
 
 ---
 
+---
+
+## Phase 2: On-Chain Proof Storage + Cross-Verification
+
+**Goal:** Store ZK proofs on-chain with each report so the opponent can verify honesty client-side. No on-chain verifier needed — proofs are auditable and verified in-browser by the other player.
+
+### Architecture
+
+```
+Current (broken trust model):
+  P2 fires at P1 → P1 says "miss" → contract trusts blindly → P1 could cheat
+
+New (verifiable):
+  P2 fires at P1 → P1 generates ZK proof → P1 submits report + proof on-chain
+  → P2's client fetches proof from contract → P2 verifies in-browser
+  → If invalid → "CHEATING DETECTED" alert
+```
+
+Proofs are stored on-chain as `Bytes`, making them publicly auditable. Anyone can fetch them and verify. On-chain enforcement (auto-rejection of invalid proofs) is a future improvement requiring a Soroban verifier contract.
+
+### Task 8: Contract — Store Proofs On-Chain
+**Files:** `contracts/battleship/src/lib.rs`
+
+- Add `last_shot_proof: Bytes` and `last_sonar_proof: Bytes` fields to game state
+- Modify `report_result(game_id, player, hit, proof: Bytes)` — store proof in game state
+- Modify `report_sonar(game_id, player, count, proof: Bytes)` — store proof in game state
+- `get_game` already returns full state, so proofs are readable by opponent
+- Rebuild and redeploy to testnet
+
+### Task 9: Frontend — Submit Proofs With Reports
+**Files:** `frontend/src/lib/stellar.ts`, `frontend/src/components/OnlineBattle.tsx`
+
+- Update `reportResultOnChain` to accept and pass proof bytes
+- Update `reportSonarOnChain` to accept and pass proof bytes
+- In `autoReportShot` / `autoReportSonar`: pass the generated proof to the on-chain call
+- If proof generation fails, submit empty bytes (game continues but opponent sees "unverified")
+
+### Task 10: Frontend — Opponent-Side Proof Verification
+**Files:** `frontend/src/components/OnlineBattle.tsx`, new verification utils
+
+- After opponent reports (detected via poll), fetch proof from `game.lastShotProof` / `game.lastSonarProof`
+- Verify proof client-side using barretenberg WASM verifier
+- Public inputs: opponent's board hash (from contract), shot coordinates, claimed hit/miss
+- Display in proof log: "✅ Opponent's proof verified" or "❌ INVALID PROOF — opponent may be cheating!"
+- If proof is empty bytes: "⚠️ Unverified — opponent did not submit proof"
+
+### Execution Order
+8 → 9 → 10 (sequential — contract change needed first, then frontend submit, then verify)
+
+### Contract Redeploy Required
+New contract address after Task 8. Update `CONTRACT_ID` in frontend.
+
+---
+
 ## Out of Scope (Post-Hackathon)
 - WebSocket real-time sync (polling is fine for demo)
-- On-chain ZK proof verification (proofs verified in-browser; on-chain verification would need a Soroban verifier contract)
+- On-chain ZK proof verification / enforcement (proofs stored on-chain and verified client-side; on-chain verifier contract is future work)
 - Mobile support
 - Mainnet deployment
