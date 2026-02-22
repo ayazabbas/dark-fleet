@@ -201,8 +201,29 @@ Proofs are stored on-chain as `Bytes`, making them publicly auditable. Anyone ca
 - Display in proof log: "✅ Opponent's proof verified" or "❌ INVALID PROOF — opponent may be cheating!"
 - If proof is empty bytes: "⚠️ Unverified — opponent did not submit proof"
 
+### Task 11: Update Docs Page
+**Files:** `frontend/src/pages/Docs.tsx`
+
+- Update architecture section to describe the proof verification model:
+  - Proofs stored on-chain with every report
+  - Opponent verifies client-side in-browser
+  - On-chain enforcement as future work
+- Add section on trust model / anti-cheat: what's verified, what's not
+- Update smart contract functions list (new `proof` parameter on `report_result` / `report_sonar`)
+- Add verification flow diagram
+
+### Task 12: Update README
+**Files:** `README.md`
+
+- Update feature list to highlight on-chain proof storage + cross-verification
+- Update architecture overview / how it works section
+- Update contract function signatures
+- Add "Trust Model" or "Anti-Cheat" section explaining the verification approach
+- Update contract address to new deployment
+- Ensure hackathon submission details are current
+
 ### Execution Order
-8 → 9 → 10 (sequential — contract change needed first, then frontend submit, then verify)
+8 → 9 → 10 → 11 & 12 (contract first, then frontend, then docs/readme in parallel)
 
 ### Contract Redeploy Required
 New contract address after Task 8. Update `CONTRACT_ID` in frontend.
