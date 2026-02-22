@@ -117,6 +117,7 @@ export default function OnlineBattle({
       addLog(`Shot at ${coord(x,y)} -> ${wasHit ? 'HIT' : 'MISS'}`);
       pendingShotRef.current = null;
       turnLockedRef.current = false;
+      setIsMyTurn(false); // Turn passes to opponent after our shot resolves
     }
 
     // Resolve pending sonar result
@@ -131,6 +132,7 @@ export default function OnlineBattle({
       addLog(`Sonar at ${coord(centerX,centerY)}: ${count} cells`);
       pendingSonarRef.current = null;
       turnLockedRef.current = false;
+      setIsMyTurn(false); // Turn passes to opponent after our sonar resolves
     }
 
     // Auto-report opponent's shot at me
@@ -189,6 +191,8 @@ export default function OnlineBattle({
 
       const txHash = await reportResultOnChain(gameId, walletAddress, hit);
       addLog(`Reported ${hit ? 'HIT' : 'MISS'} on-chain`, txHash);
+      setIsMyTurn(true); // After reporting opponent's shot, it's our turn
+      setStatusMsg('Your turn — select a target on Enemy Waters');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'unknown error';
       addLog(`Report error: ${msg}`);
@@ -217,6 +221,8 @@ export default function OnlineBattle({
 
       const txHash = await reportSonarOnChain(gameId, walletAddress, count);
       addLog(`Reported sonar count=${count} on-chain`, txHash);
+      setIsMyTurn(true); // After reporting opponent's sonar, it's our turn
+      setStatusMsg('Your turn — select a target on Enemy Waters');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'unknown error';
       addLog(`Sonar report error: ${msg}`);
