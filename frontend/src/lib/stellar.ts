@@ -32,7 +32,8 @@ interface TxResult {
 async function buildAndSendTx(
   callerAddress: string,
   method: string,
-  params: StellarSdk.xdr.ScVal[]
+  params: StellarSdk.xdr.ScVal[],
+  retries = 3
 ): Promise<TxResult> {
   const account = await server.getAccount(callerAddress);
   const contract = new StellarSdk.Contract(CONTRACT_ID);
@@ -45,7 +46,15 @@ async function buildAndSendTx(
     .setTimeout(60)
     .build();
 
-  const simulated = await server.simulateTransaction(tx);
+  // Retry simulation — RPC state may lag after a previous tx lands
+  let simulated = await server.simulateTransaction(tx);
+  let attempt = 1;
+  while (StellarSdk.rpc.Api.isSimulationError(simulated) && attempt < retries) {
+    console.warn(`[buildAndSendTx] Simulation attempt ${attempt} failed for ${method}, retrying in 2s...`);
+    await new Promise(r => setTimeout(r, 2000));
+    simulated = await server.simulateTransaction(tx);
+    attempt++;
+  }
   if (StellarSdk.rpc.Api.isSimulationError(simulated)) {
     console.error(`[buildAndSendTx] Simulation failed for ${method}:`, (simulated as StellarSdk.rpc.Api.SimulateTransactionErrorResponse).error);
     console.error(`[buildAndSendTx] Params:`, params.map(p => p.toXDR('base64')));
