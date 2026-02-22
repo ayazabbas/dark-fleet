@@ -63,6 +63,15 @@ Integrates with the **Stellar Game Hub** contract (`CB4VZAT2U3UC6XFK3N23SKRF2NDC
 - Real-time ZK proof log showing all cryptographic operations
 - Dark theme with Tailwind CSS
 
+## Deployed on Stellar Testnet
+
+The game contract is live on Stellar testnet:
+
+- **Contract Address**: `CBOJUXTKNDDK6A6IT675ORR5LLAWYIMAGSPIFYESSWYXGXOVHRLEPN5D`
+- **Explorer**: [View on Stellar Lab](https://lab.stellar.org/r/testnet/contract/CBOJUXTKNDDK6A6IT675ORR5LLAWYIMAGSPIFYESSWYXGXOVHRLEPN5D)
+
+All core contract functions have been tested on testnet: `new_game`, `commit_board`, and `take_shot` are working end-to-end.
+
 ## Quick Start
 
 ### Prerequisites
