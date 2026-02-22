@@ -96,10 +96,9 @@ async function readContract<T>(
   params: StellarSdk.xdr.ScVal[],
   decoder: (val: StellarSdk.xdr.ScVal) => T
 ): Promise<T> {
-  // Use a throwaway source account for simulation
-  const dummyKeypair = StellarSdk.Keypair.random();
-  const dummyPubkey = dummyKeypair.publicKey();
-  const account = new StellarSdk.Account(dummyPubkey, '0');
+  // Use deployer address as dummy source for read-only simulations (must exist on-chain)
+  const DEPLOYER = 'GBEBI4J7MXOLM6RRNSHED4BLGJEIJ4CJTBVEHSOWL6APY5KUYXECQHEV';
+  const account = new StellarSdk.Account(DEPLOYER, '0');
   const contract = new StellarSdk.Contract(CONTRACT_ID);
 
   const tx = new StellarSdk.TransactionBuilder(account, {
