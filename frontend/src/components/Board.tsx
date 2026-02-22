@@ -1,15 +1,17 @@
 import { GRID_SIZE } from '../lib/game';
 
 interface BoardProps {
-  cells: boolean[][]; // true = has something to show
-  hits: Set<string>;  // "x,y" format
+  cells: boolean[][];
+  hits: Set<string>;
   misses: Set<string>;
   showShips?: boolean;
   shipCells?: Set<string>;
   onCellClick?: (x: number, y: number) => void;
+  onCellHover?: (x: number, y: number) => void;
+  onMouseLeave?: () => void;
   disabled?: boolean;
   label: string;
-  highlightCells?: Set<string>; // for placement preview
+  highlightCells?: Set<string>;
   invalidHighlight?: boolean;
 }
 
@@ -21,6 +23,8 @@ export default function Board({
   showShips,
   shipCells,
   onCellClick,
+  onCellHover,
+  onMouseLeave,
   disabled,
   label,
   highlightCells,
@@ -28,21 +32,24 @@ export default function Board({
 }: BoardProps) {
   return (
     <div className="flex flex-col items-center">
-      <h3 className="text-lg font-bold mb-2 text-cyan-400">{label}</h3>
-      <div className="inline-grid gap-0.5 bg-gray-800 p-1 rounded-lg">
+      <h3 className="text-sm font-bold mb-2 tracking-widest uppercase text-cyan-400">{label}</h3>
+      <div
+        className="inline-grid gap-px bg-slate-950 p-1 rounded-lg border border-cyan-900/40"
+        onMouseLeave={onMouseLeave}
+      >
         {/* Header row */}
-        <div className="grid grid-cols-11 gap-0.5">
+        <div className="grid grid-cols-11 gap-px">
           <div className="w-8 h-8" />
           {Array.from({ length: GRID_SIZE }, (_, i) => (
-            <div key={i} className="w-8 h-8 flex items-center justify-center text-xs text-gray-400 font-mono">
+            <div key={i} className="w-8 h-8 flex items-center justify-center text-[10px] text-cyan-700 font-mono font-bold">
               {COL_LABELS[i]}
             </div>
           ))}
         </div>
         {/* Grid rows */}
         {Array.from({ length: GRID_SIZE }, (_, y) => (
-          <div key={y} className="grid grid-cols-11 gap-0.5">
-            <div className="w-8 h-8 flex items-center justify-center text-xs text-gray-400 font-mono">
+          <div key={y} className="grid grid-cols-11 gap-px">
+            <div className="w-8 h-8 flex items-center justify-center text-[10px] text-cyan-700 font-mono font-bold">
               {y + 1}
             </div>
             {Array.from({ length: GRID_SIZE }, (_, x) => {
@@ -52,23 +59,24 @@ export default function Board({
               const isShip = showShips && shipCells?.has(key);
               const isHighlight = highlightCells?.has(key);
 
-              let bg = 'bg-blue-900/50 hover:bg-blue-800/70'; // water
-              if (isHit) bg = 'bg-red-600'; // hit
-              else if (isMiss) bg = 'bg-gray-500'; // miss
-              else if (isHighlight) bg = invalidHighlight ? 'bg-red-400/60' : 'bg-green-400/60';
-              else if (isShip) bg = 'bg-gray-400'; // ship
+              let cellClass = 'ocean-cell';
+              if (isHit) cellClass = 'hit-cell animate-explosion';
+              else if (isMiss) cellClass = 'miss-cell animate-splash';
+              else if (isHighlight) cellClass = invalidHighlight ? 'invalid-preview' : 'valid-preview';
+              else if (isShip) cellClass = 'ship-cell';
 
               const cursor = disabled || isHit || isMiss ? 'cursor-default' : 'cursor-crosshair';
 
               return (
                 <button
                   key={x}
-                  className={`w-8 h-8 ${bg} ${cursor} rounded-sm transition-colors duration-100 border border-blue-900/30`}
+                  className={`w-8 h-8 ${cellClass} ${cursor} rounded-sm flex items-center justify-center border border-slate-800/50`}
                   onClick={() => !disabled && onCellClick?.(x, y)}
+                  onMouseEnter={() => onCellHover?.(x, y)}
                   disabled={disabled}
                 >
-                  {isHit && <span className="text-white text-sm font-bold">X</span>}
-                  {isMiss && <span className="text-gray-300 text-xs">~</span>}
+                  {isHit && <span className="text-orange-300 text-sm font-black drop-shadow-[0_0_4px_rgba(251,146,60,0.8)]">X</span>}
+                  {isMiss && <span className="text-slate-400 text-lg leading-none">·</span>}
                 </button>
               );
             })}

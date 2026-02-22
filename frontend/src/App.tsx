@@ -5,6 +5,9 @@ import type { Ship, GamePhase } from './lib/game';
 import { shipsToCircuitInput } from './lib/game';
 import { generateBoardProof, generateShotProof } from './lib/noir';
 
+const CONTRACT_ADDRESS = 'CBOJUXTKNDDK6A6IT675ORR5LLAWYIMAGSPIFYESSWYXGXOVHRLEPN5D';
+const EXPLORER_URL = `https://lab.stellar.org/r/testnet/contract/${CONTRACT_ADDRESS}`;
+
 function App() {
   const [phase, setPhase] = useState<GamePhase>('setup');
   const [p1Ships, setP1Ships] = useState<Ship[]>([]);
@@ -102,27 +105,27 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-cyan-900 px-6 py-4">
+      <header className="bg-slate-900 border-b border-cyan-900/30 px-6 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">&#9875;</span>
+            <span className="text-2xl">⚓</span>
             <div>
-              <h1 className="text-2xl font-black tracking-tight text-cyan-400">ZK BATTLESHIP</h1>
-              <p className="text-xs text-gray-500">Zero-Knowledge Naval Warfare on Stellar</p>
+              <h1 className="text-xl font-black tracking-tight text-cyan-400">ZK BATTLESHIP</h1>
+              <p className="text-[10px] text-slate-600 tracking-wider uppercase">Zero-Knowledge Naval Warfare on Stellar</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 text-xs">
             {p1BoardHash && (
-              <span className="text-xs text-gray-500 font-mono">
-                P1: {p1BoardHash.slice(0, 8)}...
-              </span>
+              <div className="text-slate-500 font-mono bg-slate-800/50 px-2 py-1 rounded">
+                P1: {p1BoardHash.slice(0, 10)}...
+              </div>
             )}
             {p2BoardHash && (
-              <span className="text-xs text-gray-500 font-mono">
-                P2: {p2BoardHash.slice(0, 8)}...
-              </span>
+              <div className="text-slate-500 font-mono bg-slate-800/50 px-2 py-1 rounded">
+                P2: {p2BoardHash.slice(0, 10)}...
+              </div>
             )}
           </div>
         </div>
@@ -133,32 +136,57 @@ function App() {
         {/* Setup screen */}
         {phase === 'setup' && (
           <div className="text-center space-y-8 max-w-lg">
-            <div className="space-y-2">
-              <span className="text-6xl block">&#9875;</span>
-              <h2 className="text-4xl font-black text-cyan-400">ZK BATTLESHIP</h2>
-              <p className="text-gray-400">
-                A zero-knowledge battleship game powered by Noir circuits and Stellar smart contracts.
-                Each player's board is committed as a Pedersen hash, and shot results are verified with ZK proofs.
+            <div className="space-y-3">
+              <div className="text-7xl">⚓</div>
+              <h2 className="text-5xl font-black text-cyan-400 tracking-tight">ZK BATTLESHIP</h2>
+              <p className="text-slate-400 leading-relaxed">
+                A zero-knowledge battleship game powered by <strong className="text-slate-300">Noir ZK circuits</strong> and <strong className="text-slate-300">Stellar smart contracts</strong>.
+                Board positions are hidden with Pedersen hash commitments. Shot results verified with ZK proofs.
               </p>
             </div>
-            <div className="space-y-3">
-              <button
-                className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-bold text-lg transition-colors"
-                onClick={() => setPhase('place-p1')}
-              >
-                Start Local Game (2 Players)
-              </button>
-              <p className="text-xs text-gray-600">Both players take turns on the same screen</p>
+
+            <button
+              className="w-full py-4 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-black text-lg transition-all hover:shadow-lg hover:shadow-cyan-900/50 active:scale-[0.98]"
+              onClick={() => setPhase('place-p1')}
+            >
+              Start Game
+            </button>
+            <p className="text-xs text-slate-600">Local hotseat mode — both players take turns on the same screen</p>
+
+            <div className="bg-slate-900 rounded-lg p-5 text-left text-sm space-y-3 border border-slate-800">
+              <p className="font-bold text-slate-300 uppercase text-xs tracking-wider">How it works</p>
+              <div className="grid grid-cols-1 gap-2 text-slate-400">
+                <div className="flex gap-3 items-start">
+                  <span className="text-cyan-500 font-mono text-xs mt-0.5">01</span>
+                  <span>Each player places 5 ships on a 10×10 grid</span>
+                </div>
+                <div className="flex gap-3 items-start">
+                  <span className="text-cyan-500 font-mono text-xs mt-0.5">02</span>
+                  <span>A ZK proof validates placement and commits a Pedersen hash</span>
+                </div>
+                <div className="flex gap-3 items-start">
+                  <span className="text-cyan-500 font-mono text-xs mt-0.5">03</span>
+                  <span>Players take turns firing shots at each other's grid</span>
+                </div>
+                <div className="flex gap-3 items-start">
+                  <span className="text-cyan-500 font-mono text-xs mt-0.5">04</span>
+                  <span>First to sink all 17 ship cells wins</span>
+                </div>
+              </div>
             </div>
-            <div className="bg-gray-800 rounded-lg p-4 text-left text-sm text-gray-400 space-y-2">
-              <p><strong className="text-gray-300">How it works:</strong></p>
-              <ul className="list-disc list-inside space-y-1">
-                <li>Each player places 5 ships on a 10x10 grid</li>
-                <li>A ZK proof is generated proving the board is valid</li>
-                <li>The board hash is committed (Pedersen hash)</li>
-                <li>Players take turns shooting at each other's grid</li>
-                <li>First to sink all 17 ship cells wins</li>
-              </ul>
+
+            {/* Contract info */}
+            <div className="bg-slate-900/50 rounded-lg px-4 py-3 border border-slate-800/50">
+              <p className="text-[10px] text-slate-600 uppercase tracking-wider mb-1">Deployed on Stellar Testnet</p>
+              <p className="text-xs font-mono text-slate-500 break-all">{CONTRACT_ADDRESS}</p>
+              <a
+                href={EXPLORER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-cyan-600 hover:text-cyan-400 transition-colors mt-1 inline-block"
+              >
+                View on Stellar Lab →
+              </a>
             </div>
           </div>
         )}
@@ -170,8 +198,9 @@ function App() {
 
         {phase === 'place-p2' && (
           <div>
-            <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3 mb-6 text-center text-yellow-300 text-sm">
-              Pass the screen to Player 2 - no peeking at Player 1's ships!
+            <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-3 mb-6 text-center">
+              <p className="text-amber-300 text-sm font-medium">Pass the screen to Player 2</p>
+              <p className="text-amber-300/60 text-xs mt-0.5">No peeking at Player 1's ships!</p>
             </div>
             <ShipPlacement playerName="Player 2" onConfirm={handleP2PlaceShips} />
           </div>
@@ -179,10 +208,19 @@ function App() {
 
         {/* Proof generation */}
         {(phase === 'prove-p1' || phase === 'prove-p2') && (
-          <div className="text-center space-y-4">
-            <div className="animate-spin text-6xl">&#9881;</div>
-            <p className="text-xl text-cyan-300">{proofStatus}</p>
-            <p className="text-gray-500 text-sm">This may take a moment...</p>
+          <div className="text-center space-y-6">
+            <div className="relative w-20 h-20 mx-auto">
+              <div className="absolute inset-0 rounded-full border-2 border-cyan-800/30" />
+              <div className="absolute inset-0 rounded-full border-t-2 border-cyan-400 animate-spin" />
+              <div className="absolute inset-2 rounded-full border border-cyan-900/20" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl">🔐</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-lg text-cyan-300 font-medium">{proofStatus}</p>
+              <p className="text-slate-600 text-sm mt-2">Generating ZK proof in browser via Barretenberg WASM...</p>
+            </div>
           </div>
         )}
 
@@ -200,30 +238,32 @@ function App() {
         {/* Game over */}
         {phase === 'game-over' && winner && (
           <div className="text-center space-y-6">
-            <span className="text-6xl block">&#127942;</span>
+            <div className="text-7xl">🏆</div>
             <h2 className="text-4xl font-black text-cyan-400">
               Player {winner} Wins!
             </h2>
-            <p className="text-gray-400">All enemy ships have been sunk.</p>
-            <button
-              className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-bold text-lg transition-colors"
-              onClick={handleRestart}
-            >
-              Play Again
-            </button>
+            <p className="text-slate-400">All enemy ships have been sunk.</p>
+            <div className="flex gap-4 justify-center">
+              <button
+                className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-bold text-lg transition-colors"
+                onClick={handleRestart}
+              >
+                Play Again
+              </button>
+            </div>
           </div>
         )}
       </main>
 
       {/* Proof log */}
       {proofLog.length > 0 && (
-        <footer className="bg-gray-800 border-t border-gray-700 px-6 py-3">
+        <footer className="bg-slate-900 border-t border-slate-800 px-6 py-3">
           <div className="max-w-6xl mx-auto">
             <details open={proofLog.length <= 5}>
-              <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-400">
+              <summary className="text-xs text-slate-600 cursor-pointer hover:text-slate-400 uppercase tracking-wider font-medium">
                 ZK Proof Log ({proofLog.length} events)
               </summary>
-              <div className="mt-2 max-h-32 overflow-y-auto text-xs font-mono text-green-400 space-y-0.5">
+              <div className="mt-2 max-h-32 overflow-y-auto text-xs font-mono text-green-500/80 space-y-0.5">
                 {proofLog.map((log, i) => (
                   <div key={i}>{log}</div>
                 ))}

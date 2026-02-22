@@ -29,6 +29,7 @@ export default function GamePlay({
   const [p2Shots, setP2Shots] = useState<ShotRecord[]>([]);
   const [message, setMessage] = useState('');
   const [transitioning, setTransitioning] = useState(false);
+  const [showTransitionScreen, setShowTransitionScreen] = useState(false);
 
   const p1ShipCells = useMemo(() => {
     const set = new Set<string>();
@@ -46,7 +47,6 @@ export default function GamePlay({
     return set;
   }, [p2Ships]);
 
-  // Compute hits/misses for display
   const makeHitMissSet = (shots: ShotRecord[]) => {
     const hits = new Set<string>();
     const misses = new Set<string>();
@@ -57,8 +57,8 @@ export default function GamePlay({
     return { hits, misses };
   };
 
-  const p1Attack = makeHitMissSet(p1Shots); // P1's shots against P2
-  const p2Attack = makeHitMissSet(p2Shots); // P2's shots against P1
+  const p1Attack = makeHitMissSet(p1Shots);
+  const p2Attack = makeHitMissSet(p2Shots);
 
   const p1HitCount = p1Shots.filter(s => s.hit).length;
   const p2HitCount = p2Shots.filter(s => s.hit).length;
@@ -69,7 +69,6 @@ export default function GamePlay({
     const targetShips = turn === 1 ? p2Ships : p1Ships;
     const currentShots = turn === 1 ? p1Shots : p2Shots;
 
-    // Check if already shot here
     if (currentShots.some(s => s.x === x && s.y === y)) return;
 
     const hit = checkHit(targetShips, x, y);
@@ -80,6 +79,7 @@ export default function GamePlay({
       setP1Shots(newShots);
       const totalHits = newShots.filter(s => s.hit).length;
       if (totalHits >= TOTAL_SHIP_CELLS) {
+        onShotFired(turn, x, y, hit);
         onGameOver(1);
         return;
       }
@@ -88,22 +88,45 @@ export default function GamePlay({
       setP2Shots(newShots);
       const totalHits = newShots.filter(s => s.hit).length;
       if (totalHits >= TOTAL_SHIP_CELLS) {
+        onShotFired(turn, x, y, hit);
         onGameOver(2);
         return;
       }
     }
 
     onShotFired(turn, x, y, hit);
-    setMessage(hit ? 'HIT!' : 'Miss...');
-
-    // Transition to next player
+    setMessage(hit ? 'DIRECT HIT!' : 'Miss...');
     setTransitioning(true);
+
     setTimeout(() => {
-      setTurn(turn === 1 ? 2 : 1);
       setMessage('');
-      setTransitioning(false);
-    }, 1500);
+      setShowTransitionScreen(true);
+    }, 1200);
   };
+
+  const handleContinue = () => {
+    setTurn(turn === 1 ? 2 : 1);
+    setShowTransitionScreen(false);
+    setTransitioning(false);
+  };
+
+  // Turn transition screen (prevents seeing opponent's board)
+  if (showTransitionScreen) {
+    const nextPlayer = turn === 1 ? 2 : 1;
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 py-12">
+        <div className="text-6xl">⚓</div>
+        <h2 className="text-3xl font-black text-cyan-300">Player {nextPlayer}'s Turn</h2>
+        <p className="text-slate-400">Make sure Player {turn} has looked away!</p>
+        <button
+          className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-bold text-lg transition-colors mt-4"
+          onClick={handleContinue}
+        >
+          Ready — Show My Board
+        </button>
+      </div>
+    );
+  }
 
   const myShipCells = turn === 1 ? p1ShipCells : p2ShipCells;
   const myReceivedHits = turn === 1 ? p2Attack.hits : p1Attack.hits;
@@ -112,29 +135,48 @@ export default function GamePlay({
   const myAttackMisses = turn === 1 ? p1Attack.misses : p2Attack.misses;
 
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div className="flex flex-col items-center gap-5">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-cyan-300">
+        <h2 className="text-2xl font-black text-cyan-300">
           Player {turn}'s Turn
         </h2>
-        <div className="flex gap-8 mt-2 text-sm">
-          <span className="text-gray-400">
-            P1 Hits: <strong className={p1HitCount > 0 ? 'text-red-400' : 'text-gray-400'}>{p1HitCount}/{TOTAL_SHIP_CELLS}</strong>
-          </span>
-          <span className="text-gray-400">
-            P2 Hits: <strong className={p2HitCount > 0 ? 'text-red-400' : 'text-gray-400'}>{p2HitCount}/{TOTAL_SHIP_CELLS}</strong>
-          </span>
+        <p className="text-slate-500 text-sm mt-1">Select a target on Enemy Waters</p>
+      </div>
+
+      {/* Score bar */}
+      <div className="flex gap-6 items-center">
+        <div className={`text-center px-4 py-2 rounded-lg border ${turn === 1 ? 'bg-cyan-900/30 border-cyan-700' : 'bg-slate-800/60 border-slate-700'}`}>
+          <div className="text-xs text-slate-400 uppercase tracking-wide">Player 1</div>
+          <div className="text-lg font-black">
+            <span className={p1HitCount > 0 ? 'text-red-400' : 'text-slate-500'}>{p1HitCount}</span>
+            <span className="text-slate-600">/{TOTAL_SHIP_CELLS}</span>
+          </div>
+          {/* Hit progress bar */}
+          <div className="w-24 h-1 bg-slate-700 rounded-full mt-1">
+            <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${(p1HitCount / TOTAL_SHIP_CELLS) * 100}%` }} />
+          </div>
+        </div>
+        <span className="text-slate-600 font-bold text-sm">VS</span>
+        <div className={`text-center px-4 py-2 rounded-lg border ${turn === 2 ? 'bg-cyan-900/30 border-cyan-700' : 'bg-slate-800/60 border-slate-700'}`}>
+          <div className="text-xs text-slate-400 uppercase tracking-wide">Player 2</div>
+          <div className="text-lg font-black">
+            <span className={p2HitCount > 0 ? 'text-red-400' : 'text-slate-500'}>{p2HitCount}</span>
+            <span className="text-slate-600">/{TOTAL_SHIP_CELLS}</span>
+          </div>
+          <div className="w-24 h-1 bg-slate-700 rounded-full mt-1">
+            <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${(p2HitCount / TOTAL_SHIP_CELLS) * 100}%` }} />
+          </div>
         </div>
       </div>
 
+      {/* Hit/Miss message */}
       {message && (
-        <div className={`text-3xl font-black animate-bounce ${message === 'HIT!' ? 'text-red-500' : 'text-gray-400'}`}>
+        <div className={`text-3xl font-black ${message.includes('HIT') ? 'text-red-400 animate-bounce' : 'text-slate-500'}`}>
           {message}
         </div>
       )}
 
       <div className="flex gap-8 flex-wrap justify-center">
-        {/* Your board (defense) */}
         <Board
           cells={[]}
           hits={myReceivedHits}
@@ -144,8 +186,6 @@ export default function GamePlay({
           disabled={true}
           label="Your Fleet"
         />
-
-        {/* Opponent's board (attack) */}
         <Board
           cells={[]}
           hits={myAttackHits}
@@ -156,8 +196,6 @@ export default function GamePlay({
           label="Enemy Waters"
         />
       </div>
-
-      <p className="text-gray-500 text-sm">Click on Enemy Waters to fire a shot</p>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import Board from './Board';
 import type { Ship, Orientation } from '../lib/game';
 import {
@@ -23,6 +23,21 @@ export default function ShipPlacement({ playerName, onConfirm }: ShipPlacementPr
   const allPlaced = currentShipIndex >= SHIP_LENGTHS.length;
   const currentLength = allPlaced ? 0 : SHIP_LENGTHS[currentShipIndex];
   const currentName = allPlaced ? '' : SHIP_NAMES[currentShipIndex];
+
+  const toggleOrientation = useCallback(() => {
+    setOrientation(prev => prev === 0 ? 1 : 0);
+  }, []);
+
+  // Keyboard shortcut: R to rotate
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'r' || e.key === 'R') {
+        toggleOrientation();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [toggleOrientation]);
 
   // Compute ship cells set for display
   const shipCells = useMemo(() => {
@@ -59,6 +74,12 @@ export default function ShipPlacement({ playerName, onConfirm }: ShipPlacementPr
     setHoverPos(null);
   };
 
+  const handleCellHover = (x: number, y: number) => {
+    if (!allPlaced) {
+      setHoverPos([x, y]);
+    }
+  };
+
   const handleUndo = () => {
     if (placedShips.length === 0) return;
     setPlacedShips(placedShips.slice(0, -1));
@@ -66,81 +87,90 @@ export default function ShipPlacement({ playerName, onConfirm }: ShipPlacementPr
   };
 
   return (
-    <div className="flex flex-col items-center gap-6">
-      <h2 className="text-2xl font-bold text-cyan-300">{playerName} - Place Your Ships</h2>
+    <div className="flex flex-col items-center gap-5">
+      <h2 className="text-2xl font-black tracking-tight text-cyan-300">{playerName} — Place Your Fleet</h2>
 
-      {!allPlaced && (
-        <div className="flex items-center gap-4 text-gray-300">
-          <span>
-            Placing: <strong className="text-white">{currentName}</strong> (length {currentLength})
-          </span>
-          <button
-            className="px-3 py-1 bg-cyan-700 hover:bg-cyan-600 rounded text-sm font-medium transition-colors"
-            onClick={() => setOrientation(orientation === 0 ? 1 : 0)}
-          >
-            {orientation === 0 ? 'Horizontal' : 'Vertical'} (click to rotate)
-          </button>
+      {!allPlaced ? (
+        <div className="bg-slate-800/60 rounded-lg px-5 py-3 border border-slate-700 text-center">
+          <div className="text-gray-300 text-sm">
+            Now placing: <strong className="text-white text-base">{currentName}</strong>
+            <span className="text-cyan-400 ml-1">({currentLength} cells)</span>
+          </div>
+          <div className="flex items-center justify-center gap-3 mt-2">
+            <button
+              className="px-3 py-1.5 bg-cyan-700 hover:bg-cyan-600 rounded text-sm font-medium transition-colors flex items-center gap-1.5"
+              onClick={toggleOrientation}
+            >
+              <span className="text-base">{orientation === 0 ? '↔' : '↕'}</span>
+              {orientation === 0 ? 'Horizontal' : 'Vertical'}
+            </button>
+            <span className="text-slate-500 text-xs">Press <kbd className="bg-slate-700 px-1.5 py-0.5 rounded text-cyan-300 font-mono">R</kbd> to rotate</span>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-emerald-900/30 border border-emerald-700 rounded-lg px-5 py-3 text-center">
+          <p className="text-emerald-300 font-medium">All ships placed! Confirm your fleet below.</p>
         </div>
       )}
 
-      <div
+      <Board
+        cells={[]}
+        hits={new Set()}
+        misses={new Set()}
+        showShips={true}
+        shipCells={shipCells}
+        onCellClick={handleCellClick}
+        onCellHover={handleCellHover}
         onMouseLeave={() => setHoverPos(null)}
-      >
-        <Board
-          cells={[]}
-          hits={new Set()}
-          misses={new Set()}
-          showShips={true}
-          shipCells={shipCells}
-          onCellClick={handleCellClick}
-          disabled={allPlaced}
-          label="Your Board"
-          highlightCells={highlightCells}
-          invalidHighlight={isInvalidPlacement}
-        />
-        {/* Invisible overlay to track mouse position on the grid */}
-        <div
-          className="absolute inset-0"
-          style={{ pointerEvents: 'none' }}
-        />
-      </div>
+        disabled={allPlaced}
+        label="Your Board"
+        highlightCells={highlightCells}
+        invalidHighlight={isInvalidPlacement}
+      />
 
       {/* Ship list */}
       <div className="flex gap-2 flex-wrap justify-center">
-        {SHIP_NAMES.map((name, i) => (
-          <div
-            key={name}
-            className={`px-3 py-1 rounded text-sm ${
-              i < placedShips.length
-                ? 'bg-green-700 text-white'
-                : i === currentShipIndex
-                ? 'bg-cyan-700 text-white animate-pulse'
-                : 'bg-gray-700 text-gray-400'
-            }`}
-          >
-            {name} ({SHIP_LENGTHS[i]})
-          </div>
-        ))}
+        {SHIP_NAMES.map((name, i) => {
+          const length = SHIP_LENGTHS[i];
+          const placed = i < placedShips.length;
+          const current = i === currentShipIndex && !allPlaced;
+          return (
+            <div
+              key={name}
+              className={`px-3 py-1.5 rounded text-sm font-medium flex items-center gap-1.5 transition-all ${
+                placed
+                  ? 'bg-emerald-800/60 text-emerald-300 border border-emerald-700/50'
+                  : current
+                  ? 'bg-cyan-800/60 text-cyan-200 border border-cyan-600/50 ring-1 ring-cyan-500/40'
+                  : 'bg-slate-800/60 text-slate-500 border border-slate-700/50'
+              }`}
+            >
+              {placed && <span>✓</span>}
+              {name}
+              <span className="text-xs opacity-60">
+                {'■'.repeat(length)}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex gap-3">
         <button
-          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm"
           onClick={handleUndo}
           disabled={placedShips.length === 0}
         >
-          Undo
+          Undo Last
         </button>
         <button
-          className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 rounded font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 rounded font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           onClick={() => onConfirm(placedShips)}
           disabled={!allPlaced}
         >
-          Confirm Placement
+          Confirm Fleet
         </button>
       </div>
-
-      <p className="text-gray-500 text-sm">Click a cell to place a ship. Click the rotate button or press R to change orientation.</p>
     </div>
   );
 }
