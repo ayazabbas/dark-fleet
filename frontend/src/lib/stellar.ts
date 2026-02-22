@@ -251,7 +251,7 @@ export async function reportResult(
     StellarSdk.nativeToScVal(gameId, { type: 'u32' }),
     new StellarSdk.Address(player).toScVal(),
     StellarSdk.nativeToScVal(hit, { type: 'bool' }),
-    StellarSdk.nativeToScVal(Buffer.from(proof), { type: 'bytes' }),
+    StellarSdk.nativeToScVal(proof, { type: 'bytes' }),
   ];
   return (await buildAndSendTx(player, 'report_result', params)).hash;
 }
@@ -281,7 +281,7 @@ export async function reportSonar(
     StellarSdk.nativeToScVal(gameId, { type: 'u32' }),
     new StellarSdk.Address(player).toScVal(),
     StellarSdk.nativeToScVal(count, { type: 'u32' }),
-    StellarSdk.nativeToScVal(Buffer.from(proof), { type: 'bytes' }),
+    StellarSdk.nativeToScVal(proof, { type: 'bytes' }),
   ];
   return (await buildAndSendTx(player, 'report_sonar', params)).hash;
 }
