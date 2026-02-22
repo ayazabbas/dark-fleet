@@ -497,20 +497,26 @@ function App() {
               <summary className="text-xs text-slate-600 cursor-pointer hover:text-slate-400 uppercase tracking-wider font-medium">
                 Proof & Transaction Log ({proofLog.length} events)
               </summary>
-              <div className="mt-2 max-h-40 overflow-y-auto text-xs font-mono text-green-500/80 space-y-0.5">
+              <div className="mt-2 max-h-40 overflow-y-auto text-xs font-mono space-y-0.5">
                 {proofLog.map((entry, i) => (
-                  <div key={i}>
+                  <div key={i} className={entry.txHash ? 'text-green-500/80' : 'text-green-500/60'}>
                     <span className="text-slate-600">[{entry.time}]</span>{' '}
                     {entry.message}
                     {entry.txHash && (
-                      <a
-                        href={`${EXPLORER_TX_URL}/${entry.txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-cyan-500 hover:text-cyan-400 ml-2"
-                      >
-                        tx:{entry.txHash.slice(0, 8)}... →
-                      </a>
+                      <>
+                        {' '}
+                        <span className="text-slate-500">tx:</span>
+                        <span className="text-cyan-600">{entry.txHash.slice(0, 8)}...{entry.txHash.slice(-4)}</span>
+                        {' '}
+                        <a
+                          href={`${EXPLORER_TX_URL}/${entry.txHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-cyan-400 hover:text-cyan-300 underline decoration-cyan-700"
+                        >
+                          View on StellarExpert ↗
+                        </a>
+                      </>
                     )}
                   </div>
                 ))}
