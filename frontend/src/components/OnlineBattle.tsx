@@ -119,7 +119,9 @@ export default function OnlineBattle({
 
       // Verify opponent's shot proof (fire-and-forget)
       if (game.lastShotProof && game.lastShotProof.length > 0) {
-        const opponentBoardHash = playerNum === 1 ? game.boardHash2 : game.boardHash1;
+        const rawHash = playerNum === 1 ? game.boardHash2 : game.boardHash1;
+        const opponentBoardHash = rawHash.startsWith('0x') ? rawHash : `0x${rawHash}`;
+        console.log('[verify] opponentBoardHash:', opponentBoardHash, 'proof length:', game.lastShotProof.length);
         verifyShotProof(game.lastShotProof, opponentBoardHash, wasHit, x, y)
           .then(valid => addLog(valid ? '✅ Opponent proof verified' : '❌ INVALID PROOF — opponent may be cheating!'))
           .catch(() => addLog('⚠️ Proof verification failed'));
@@ -145,7 +147,8 @@ export default function OnlineBattle({
 
       // Verify opponent's sonar proof (fire-and-forget)
       if (game.lastSonarProof && game.lastSonarProof.length > 0) {
-        const opponentBoardHash = playerNum === 1 ? game.boardHash2 : game.boardHash1;
+        const rawHash = playerNum === 1 ? game.boardHash2 : game.boardHash1;
+        const opponentBoardHash = rawHash.startsWith('0x') ? rawHash : `0x${rawHash}`;
         verifySonarProof(game.lastSonarProof, opponentBoardHash, centerX, centerY, count)
           .then(valid => addLog(valid ? '✅ Opponent sonar proof verified' : '❌ INVALID PROOF — opponent may be cheating!'))
           .catch(() => addLog('⚠️ Sonar proof verification failed'));
