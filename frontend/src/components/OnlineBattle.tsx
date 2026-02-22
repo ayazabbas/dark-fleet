@@ -120,12 +120,7 @@ export default function OnlineBattle({
       // Verify opponent's shot proof (fire-and-forget)
       if (game.lastShotProof && game.lastShotProof.length > 0) {
         const opponentBoardHash = playerNum === 1 ? game.boardHash2 : game.boardHash1;
-        const proofHex = game.lastShotProof;
-        const proofBytes = new Uint8Array(proofHex.length / 2);
-        for (let i = 0; i < proofBytes.length; i++) {
-          proofBytes[i] = parseInt(proofHex.substring(i * 2, i * 2 + 2), 16);
-        }
-        verifyShotProof(proofBytes, opponentBoardHash, wasHit, x, y)
+        verifyShotProof(game.lastShotProof, opponentBoardHash, wasHit, x, y)
           .then(valid => addLog(valid ? '✅ Opponent proof verified' : '❌ INVALID PROOF — opponent may be cheating!'))
           .catch(() => addLog('⚠️ Proof verification failed'));
       } else {
@@ -151,12 +146,7 @@ export default function OnlineBattle({
       // Verify opponent's sonar proof (fire-and-forget)
       if (game.lastSonarProof && game.lastSonarProof.length > 0) {
         const opponentBoardHash = playerNum === 1 ? game.boardHash2 : game.boardHash1;
-        const proofHex = game.lastSonarProof;
-        const proofBytes = new Uint8Array(proofHex.length / 2);
-        for (let i = 0; i < proofBytes.length; i++) {
-          proofBytes[i] = parseInt(proofHex.substring(i * 2, i * 2 + 2), 16);
-        }
-        verifySonarProof(proofBytes, opponentBoardHash, centerX, centerY, count)
+        verifySonarProof(game.lastSonarProof, opponentBoardHash, centerX, centerY, count)
           .then(valid => addLog(valid ? '✅ Opponent sonar proof verified' : '❌ INVALID PROOF — opponent may be cheating!'))
           .catch(() => addLog('⚠️ Sonar proof verification failed'));
       } else {

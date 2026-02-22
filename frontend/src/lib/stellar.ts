@@ -143,8 +143,8 @@ export interface OnChainGame {
   sonarCenterX: number;
   sonarCenterY: number;
   lastSonarCount: number;
-  lastShotProof: string;
-  lastSonarProof: string;
+  lastShotProof: Uint8Array;
+  lastSonarProof: Uint8Array;
 }
 
 function decodeGame(val: StellarSdk.xdr.ScVal): OnChainGame {
@@ -171,8 +171,12 @@ function decodeGame(val: StellarSdk.xdr.ScVal): OnChainGame {
     sonarCenterX: Number(native.sonar_center_x),
     sonarCenterY: Number(native.sonar_center_y),
     lastSonarCount: Number(native.last_sonar_count),
-    lastShotProof: (native.last_shot_proof as string) ?? '',
-    lastSonarProof: (native.last_sonar_proof as string) ?? '',
+    lastShotProof: native.last_shot_proof instanceof Uint8Array
+      ? native.last_shot_proof
+      : new Uint8Array(native.last_shot_proof as ArrayLike<number> ?? []),
+    lastSonarProof: native.last_sonar_proof instanceof Uint8Array
+      ? native.last_sonar_proof
+      : new Uint8Array(native.last_sonar_proof as ArrayLike<number> ?? []),
   };
 }
 
