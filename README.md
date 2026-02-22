@@ -1,4 +1,4 @@
-# ZK Battleship
+# Dark Fleet - ZK Battleship
 
 A zero-knowledge Battleship game built on Stellar for the **Stellar Hacks: ZK Gaming** hackathon. Players commit hidden board states using Pedersen hash commitments and prove shot results with ZK proofs — all without revealing ship positions.
 
@@ -207,10 +207,6 @@ Smart Contract: 10 tests passed
 - Stellar wallet integration (Freighter) for on-chain game state
 - Ship sinking detection and animation
 - Game replay from on-chain events
-
-## License
-
-MIT
 
 ## Hackathon
 
