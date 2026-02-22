@@ -1,14 +1,18 @@
-# Dark Fleet - ZK Battleship
+# Dark Fleet
 
-A zero-knowledge Battleship game built on Stellar for the **Stellar Hacks: ZK Gaming** hackathon. Players commit hidden board states using Pedersen hash commitments and prove shot results with ZK proofs — all without revealing ship positions.
+**Zero-Knowledge Naval Warfare on Stellar**
+
+A zero-knowledge battleship game built on Stellar for the **Stellar Hacks: ZK Gaming** hackathon. Two players connect via Freighter wallets, commit hidden board states using Pedersen hash commitments, and prove shot results with ZK proofs — all on-chain, all without revealing ship positions.
 
 ## How It Works
 
-1. **Place Ships** — Each player places 5 ships on a private 10x10 grid
-2. **Commit Board** — A ZK proof validates the placement and produces a Pedersen hash commitment
-3. **Battle** — Players take turns firing shots; the defender proves hit/miss without revealing their board
-4. **Sonar Ping** — Every 3 turns, use a sonar ping instead of firing — the opponent proves how many ship cells exist in a 3x3 area via ZK, revealing partial intel without exposing positions
-5. **Win** — First player to sink all 17 ship cells wins
+1. **Connect Wallet** — Both players connect Freighter wallets on Stellar testnet
+2. **Create / Join** — Player 1 creates a game and shares the game code; Player 2 joins with the code
+3. **Place Ships** — Each player places 5 ships on a private 10x10 grid
+4. **Commit Board** — A ZK proof validates placement and commits a Pedersen hash on-chain
+5. **Battle** — Players take turns firing shots; every move is an on-chain transaction with ZK proof verification
+6. **Sonar Ping** — Every 3 turns, use sonar instead of firing — the opponent proves ship count in a 3x3 area via ZK
+7. **Win** — First to sink all 17 ship cells claims victory on-chain
 
 The game uses **Noir zero-knowledge circuits** for privacy and **Soroban smart contracts** on Stellar for trustless game state management.
 
@@ -56,7 +60,8 @@ Built with **Noir 0.34.0**, based on [BattleZips-Noir](https://github.com/Battle
 
 The Soroban contract (`contracts/battleship/`) manages the full game lifecycle:
 
-- `new_game(player1, player2)` — Create a game session
+- `new_game(player1)` — Create a game session (Player 2 joins later)
+- `join_game(game_id, player2)` — Join an existing game with a game code
 - `commit_board(game_id, player, board_hash)` — Submit board hash commitment
 - `take_shot(game_id, player, x, y)` — Fire a shot (must be your turn)
 - `report_result(game_id, player, hit)` — Report if the shot was a hit/miss
@@ -68,11 +73,13 @@ Integrates with the **Stellar Game Hub** contract (`CB4VZAT2U3UC6XFK3N23SKRF2NDC
 
 ### Frontend (React + TypeScript)
 
+- Freighter wallet integration for 2-player on-chain gameplay
+- Create/join game flow with shareable game codes
 - Ship placement with click-to-place and rotation
 - In-browser ZK proof generation via `@noir-lang/noir_js` + `@noir-lang/backend_barretenberg`
-- Turn-based battle UI with two boards (your fleet + enemy waters)
-- Sonar ping mode with 3x3 area highlight and color-coded results (blue/yellow/red)
-- Real-time ZK proof log showing all cryptographic operations
+- On-chain battle: every shot, report, and sonar is a Stellar transaction
+- Auto-reporting: opponent actions detected via polling, ZK proofs generated and reported automatically
+- Proof & transaction log with StellarExpert explorer links
 - Dark theme with Tailwind CSS
 
 ## Deployed on Stellar Testnet
@@ -122,7 +129,7 @@ Open http://localhost:5173 to play.
 ## Project Structure
 
 ```
-zk-battleship/
+dark-fleet/
 ├── circuits/
 │   ├── board/           # Board validation ZK circuit
 │   │   └── src/main.nr  # Ship placement + Pedersen hash
@@ -135,14 +142,16 @@ zk-battleship/
 │       └── src/lib.rs   # Game state management
 ├── frontend/            # React web application
 │   ├── src/
-│   │   ├── App.tsx              # Main game state machine
+│   │   ├── App.tsx              # Main game flow (create/join/battle)
 │   │   ├── components/
 │   │   │   ├── Board.tsx        # 10x10 grid component
 │   │   │   ├── ShipPlacement.tsx # Ship placement UI
-│   │   │   └── GamePlay.tsx     # Battle phase UI
+│   │   │   ├── GamePlay.tsx     # Hotseat battle (legacy)
+│   │   │   └── OnlineBattle.tsx # On-chain 2-player battle
 │   │   └── lib/
 │   │       ├── game.ts          # Game logic & types
-│   │       └── noir.ts          # ZK proof generation
+│   │       ├── noir.ts          # ZK proof generation
+│   │       └── stellar.ts       # Stellar wallet & contract calls
 │   └── public/circuits/         # Compiled circuit artifacts
 └── README.md
 ```
@@ -197,16 +206,16 @@ Smart Contract: 10 tests passed
 - **Pedersen hash** for board commitments — native to Noir circuits, efficient and ZK-friendly
 - **Board hash as circuit output** — the board circuit computes and returns the hash, eliminating the need for external hash computation in the frontend
 - **Off-chain proof verification** — proofs are generated and verified in the browser for the hackathon MVP; on-chain UltraHonk verification is the natural next step
-- **Hotseat multiplayer** — both players share the same screen for the demo; the smart contract supports full two-player games with separate wallets
+- **2-player on-chain multiplayer** — each player connects via Freighter wallet in separate browser windows; game state synced via Soroban contract polling
 - **Sonar ping (unique ZK mechanic)** — most ZK battleship implementations only prove binary hit/miss; our sonar circuit proves a *count* of ship cells in a region, demonstrating ZK's ability to disclose partial information without revealing exact positions
 
 ## Future Improvements
 
 - On-chain proof verification via [UltraHonk Soroban Verifier](https://github.com/indextree/ultrahonk_soroban_contract)
-- WebSocket matchmaking for remote multiplayer
-- Stellar wallet integration (Freighter) for on-chain game state
+- WebSocket real-time sync (replace polling)
 - Ship sinking detection and animation
 - Game replay from on-chain events
+- Mainnet deployment
 
 ## Hackathon
 

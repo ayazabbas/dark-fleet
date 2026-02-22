@@ -228,7 +228,7 @@ function App() {
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => phase === 'landing' ? null : handleRestart()}>
             <span className="text-2xl">⚓</span>
             <div>
-              <h1 className="text-xl font-black tracking-tight text-cyan-400">ZK BATTLESHIP</h1>
+              <h1 className="text-xl font-black tracking-tight text-cyan-400">DARK FLEET</h1>
               <p className="text-[10px] text-slate-600 tracking-wider uppercase">Zero-Knowledge Naval Warfare on Stellar</p>
             </div>
           </div>
@@ -272,10 +272,10 @@ function App() {
           <div className="text-center space-y-8 max-w-lg">
             <div className="space-y-3">
               <div className="text-7xl">⚓</div>
-              <h2 className="text-5xl font-black text-cyan-400 tracking-tight">ZK BATTLESHIP</h2>
+              <h2 className="text-5xl font-black text-cyan-400 tracking-tight">DARK FLEET</h2>
               <p className="text-slate-400 leading-relaxed">
-                A zero-knowledge battleship game powered by <strong className="text-slate-300">Noir ZK circuits</strong> and <strong className="text-slate-300">Stellar smart contracts</strong>.
-                Board positions are hidden with Pedersen hash commitments. Shot results verified with ZK proofs.
+                Zero-knowledge naval warfare powered by <strong className="text-slate-300">Noir ZK circuits</strong> and <strong className="text-slate-300">Stellar smart contracts</strong>.
+                Board positions are hidden with Pedersen hash commitments. Every shot result verified with ZK proofs — no cheating possible.
               </p>
             </div>
 
