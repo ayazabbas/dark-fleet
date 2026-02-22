@@ -148,8 +148,18 @@ function App() {
         addLog(`Game ${gameIdToCode(newId)} created on-chain`, newTx);
 
         setStatusMsg('Committing board hash on-chain...');
-        const commitTx = await commitBoard(newId, wallet!, boardHash);
-        addLog(`Board hash committed on-chain`, commitTx);
+        try {
+          const commitTx = await commitBoard(newId, wallet!, boardHash);
+          addLog(`Board hash committed on-chain`, commitTx);
+        } catch (e) {
+          // Check if board was already committed (tx succeeded but response lost)
+          const g = await getGame(newId);
+          if (g.boardsCommitted >= 1) {
+            addLog('Board hash already committed on-chain (recovered)');
+          } else {
+            throw e;
+          }
+        }
 
         // Start waiting for opponent
         setPhase('waiting');
@@ -158,8 +168,18 @@ function App() {
       } else {
         // P2: just commit board (already joined)
         setStatusMsg('Committing board hash on-chain...');
-        const commitTx = await commitBoard(gameId!, wallet!, boardHash);
-        addLog(`Board hash committed on-chain`, commitTx);
+        try {
+          const commitTx = await commitBoard(gameId!, wallet!, boardHash);
+          addLog(`Board hash committed on-chain`, commitTx);
+        } catch (e) {
+          const g = await getGame(gameId!);
+          const zero = '0000000000000000000000000000000000000000000000000000000000000000';
+          if (g.boardHash2 !== zero) {
+            addLog('Board hash already committed on-chain (recovered)');
+          } else {
+            throw e;
+          }
+        }
 
         // Check if game started
         const game = await getGame(gameId!);
