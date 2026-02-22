@@ -47,6 +47,8 @@ async function buildAndSendTx(
 
   const simulated = await server.simulateTransaction(tx);
   if (StellarSdk.rpc.Api.isSimulationError(simulated)) {
+    console.error(`[buildAndSendTx] Simulation failed for ${method}:`, (simulated as StellarSdk.rpc.Api.SimulateTransactionErrorResponse).error);
+    console.error(`[buildAndSendTx] Params:`, params.map(p => p.toXDR('base64')));
     throw new Error(`Simulation failed: ${(simulated as StellarSdk.rpc.Api.SimulateTransactionErrorResponse).error}`);
   }
 
@@ -212,6 +214,7 @@ export async function commitBoard(
   for (let i = 0; i < 32; i++) {
     hashBytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
   }
+  console.log('[commitBoard] gameId:', gameId, 'player:', player, 'hash:', hex);
   const params = [
     StellarSdk.nativeToScVal(gameId, { type: 'u32' }),
     new StellarSdk.Address(player).toScVal(),
