@@ -1,0 +1,71 @@
+name: Build & Attest Contract (SEP-0055)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: write
+  attestations: write
+
+jobs:
+  build-and-attest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install Stellar CLI
+        run: cargo install stellar-cli --locked
+
+      - name: Build contract (optimized WASM)
+        run: |
+          cd contracts/battleship
+          stellar contract build
+          cp ../../target/wasm32v1-none/release/zk_battleship.wasm ./zk_battleship.wasm
+
+      - name: Compute WASM hash
+        id: wasm_hash
+        run: |
+          HASH=$(sha256sum contracts/battleship/zk_battleship.wasm | awk '{print $1}')
+          echo "hash=$HASH" >> "$GITHUB_OUTPUT"
+          echo "WASM SHA256: $HASH"
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: contracts/battleship/zk_battleship.wasm
+          subject-name: zk_battleship.wasm
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: contracts/battleship/zk_battleship.wasm
+          body: |
+            ## Dark Fleet Contract Release
+
+            **WASM Hash (SHA256):** `${{ steps.wasm_hash.outputs.hash }}`
+
+            ### Verification (SEP-0055)
+
+            This release includes a GitHub artifact attestation. To verify the deployed contract matches this source:
+
+            ```bash
+            # Check attestation
+            gh attestation verify contracts/battleship/zk_battleship.wasm \
+              --repo ayazabbas/dark-fleet
+
+            # Or via API
+            curl https://api.github.com/repos/ayazabbas/dark-fleet/attestations/sha256:${{ steps.wasm_hash.outputs.hash }}
+            ```
+          draft: false
+          prerelease: false

@@ -3,6 +3,9 @@ name = "zk-battleship"
 version = "0.1.0"
 edition = "2021"
 
+[package.metadata.stellar]
+source_repo = "https://github.com/ayazabbas/dark-fleet"
+
 [lib]
 crate-type = ["cdylib"]
 
