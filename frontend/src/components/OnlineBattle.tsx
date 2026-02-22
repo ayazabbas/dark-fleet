@@ -62,9 +62,16 @@ export default function OnlineBattle({
   const opponentHits = useMemo(() => new Set(opponentShots.filter(s => s.hit).map(s => `${s.x},${s.y}`)), [opponentShots]);
   const opponentMisses = useMemo(() => new Set(opponentShots.filter(s => !s.hit).map(s => `${s.x},${s.y}`)), [opponentShots]);
 
-  // Poll game state
+  // Poll game state — deduplicate to avoid unnecessary re-renders
+  const lastGameJsonRef = useRef('');
   useEffect(() => {
-    const stop = pollGameState(gameId, (g) => setGame(g), 2000);
+    const stop = pollGameState(gameId, (g) => {
+      const json = JSON.stringify(g);
+      if (json !== lastGameJsonRef.current) {
+        lastGameJsonRef.current = json;
+        setGame(g);
+      }
+    }, 2000);
     return stop;
   }, [gameId]);
 
@@ -101,6 +108,7 @@ export default function OnlineBattle({
       setTimeout(() => setMessage(''), 1500);
       addLog(`Shot result: (${x},${y}) -> ${wasHit ? 'HIT' : 'MISS'}`);
       pendingShotRef.current = null;
+      lastStableTurnRef.current = null; // Allow turn display to update
     }
 
     // Resolve pending sonar result
@@ -114,6 +122,7 @@ export default function OnlineBattle({
       setTimeout(() => setMessage(''), 2000);
       addLog(`Sonar result: ${count} cells at (${centerX},${centerY})`);
       pendingSonarRef.current = null;
+      lastStableTurnRef.current = null; // Allow turn display to update
     }
 
     // Auto-report opponent's shot at me
@@ -252,9 +261,22 @@ export default function OnlineBattle({
     }
   };
 
-  // Derived game state
-  const isMyTurn = game ? game.turn === playerNum : false;
-  const canFire = isMyTurn && !game?.awaitingReport && !game?.awaitingSonar && !busy && !reportingRef.current;
+  // Derived game state — stabilize turn display during pending operations
+  const rawIsMyTurn = game ? game.turn === playerNum : false;
+  const hasPendingAction = !!pendingShotRef.current || !!pendingSonarRef.current || reportingRef.current;
+  const lastStableTurnRef = useRef<boolean | null>(null);
+
+  // Only update displayed turn when no pending actions (prevents flip-flop)
+  const isMyTurn = (() => {
+    if (!game) return false;
+    if (hasPendingAction && lastStableTurnRef.current !== null) {
+      return lastStableTurnRef.current;
+    }
+    lastStableTurnRef.current = rawIsMyTurn;
+    return rawIsMyTurn;
+  })();
+
+  const canFire = rawIsMyTurn && !game?.awaitingReport && !game?.awaitingSonar && !busy && !reportingRef.current;
 
   // Sonar availability
   const myTurnsTaken = game ? (playerNum === 1 ? game.p1TurnsTaken : game.p2TurnsTaken) : 0;
