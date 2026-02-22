@@ -48,11 +48,13 @@ export default function OnlineBattle({
   const [mySonarResults, setMySonarResults] = useState<SonarResult[]>([]);
   const [message, setMessage] = useState('');
 
+  const [isMyTurn, setIsMyTurn] = useState(false);
   const reportingRef = useRef(false);
   const lastReportedRef = useRef('');
   const pendingShotRef = useRef<{ x: number; y: number; prevHits: number } | null>(null);
   const pendingSonarRef = useRef<{ centerX: number; centerY: number } | null>(null);
   const gameOverRef = useRef(false);
+  const turnLockedRef = useRef(false); // Lock turn display during pending actions
 
   // Ship cells for my board display
   const myShipCells = useMemo(() => {
@@ -84,7 +86,8 @@ export default function OnlineBattle({
   useEffect(() => {
     if (!game || game.status !== 1) return;
 
-    const isMyTurn = game.turn === playerNum;
+    const rawIsMyTurn = game.turn === playerNum;
+    const hasPendingAction = !!pendingShotRef.current || !!pendingSonarRef.current || reportingRef.current;
 
     // Check for game over
     if (game.p1Hits >= TOTAL_SHIP_CELLS || game.p2Hits >= TOTAL_SHIP_CELLS) {
@@ -113,7 +116,7 @@ export default function OnlineBattle({
       setTimeout(() => setMessage(''), 1500);
       addLog(`Shot at ${coord(x,y)} -> ${wasHit ? 'HIT' : 'MISS'}`);
       pendingShotRef.current = null;
-      lastStableTurnRef.current = null; // Allow turn display to update
+      turnLockedRef.current = false;
     }
 
     // Resolve pending sonar result
@@ -127,11 +130,11 @@ export default function OnlineBattle({
       setTimeout(() => setMessage(''), 2000);
       addLog(`Sonar at ${coord(centerX,centerY)}: ${count} cells`);
       pendingSonarRef.current = null;
-      lastStableTurnRef.current = null; // Allow turn display to update
+      turnLockedRef.current = false;
     }
 
     // Auto-report opponent's shot at me
-    if (!isMyTurn && game.awaitingReport && !reportingRef.current) {
+    if (!rawIsMyTurn && game.awaitingReport && !reportingRef.current) {
       const key = `shot-${game.lastShotX},${game.lastShotY}-${game.p1TurnsTaken}-${game.p2TurnsTaken}`;
       if (key !== lastReportedRef.current) {
         autoReportShot(game, key);
@@ -139,20 +142,27 @@ export default function OnlineBattle({
     }
 
     // Auto-report opponent's sonar
-    if (!isMyTurn && game.awaitingSonar && !reportingRef.current) {
+    if (!rawIsMyTurn && game.awaitingSonar && !reportingRef.current) {
       const key = `sonar-${game.sonarCenterX},${game.sonarCenterY}-${game.p1TurnsTaken}-${game.p2TurnsTaken}`;
       if (key !== lastReportedRef.current) {
         autoReportSonar(game, key);
       }
     }
 
-    // Update status message
-    if (!reportingRef.current && !busy) {
-      if (isMyTurn && !game.awaitingReport && !game.awaitingSonar) {
+    // Update displayed turn — only when no pending action (prevents flip-flop)
+    if (!hasPendingAction && !turnLockedRef.current) {
+      setIsMyTurn(rawIsMyTurn);
+    }
+
+    // Update status message — uses the stable isMyTurn from state (via previous render)
+    // We derive it locally from the same stable logic
+    const stableTurn = (hasPendingAction || turnLockedRef.current) ? undefined : rawIsMyTurn;
+    if (!reportingRef.current && !busy && stableTurn !== undefined) {
+      if (stableTurn && !game.awaitingReport && !game.awaitingSonar) {
         setStatusMsg(sonarMode ? 'Select sonar center on Enemy Waters' : 'Your turn — select a target on Enemy Waters');
-      } else if (isMyTurn && (game.awaitingReport || game.awaitingSonar)) {
+      } else if (stableTurn && (game.awaitingReport || game.awaitingSonar)) {
         setStatusMsg('Waiting for opponent to report...');
-      } else {
+      } else if (!stableTurn) {
         setStatusMsg("Opponent's turn — waiting for their move...");
       }
     }
@@ -222,6 +232,7 @@ export default function OnlineBattle({
     if (myShots.some(s => s.x === x && s.y === y)) return;
 
     setBusy(true);
+    turnLockedRef.current = true; // Lock turn display until shot resolves
     setStatusMsg(`Firing at ${coord(x,y)}...`);
 
     const myHits = playerNum === 1 ? game.p1Hits : game.p2Hits;
@@ -235,6 +246,7 @@ export default function OnlineBattle({
     } catch (err: unknown) {
       setMyShots(prev => prev.filter(s => !(s.x === x && s.y === y && s.hit === null)));
       pendingShotRef.current = null;
+      turnLockedRef.current = false;
       const msg = err instanceof Error ? err.message : 'unknown error';
       addLog(`Fire failed: ${msg}`);
       setStatusMsg('Fire failed — try again');
@@ -247,6 +259,7 @@ export default function OnlineBattle({
     if (busy || !game) return;
 
     setBusy(true);
+    turnLockedRef.current = true; // Lock turn display until sonar resolves
     setSonarMode(false);
     setSonarHover(null);
     setStatusMsg(`Using sonar at ${coord(centerX,centerY)}...`);
@@ -258,6 +271,7 @@ export default function OnlineBattle({
       setStatusMsg('Waiting for opponent to report sonar result...');
     } catch (err: unknown) {
       pendingSonarRef.current = null;
+      turnLockedRef.current = false;
       const msg = err instanceof Error ? err.message : 'unknown error';
       addLog(`Sonar failed: ${msg}`);
       setStatusMsg('Sonar failed — try again');
@@ -266,21 +280,8 @@ export default function OnlineBattle({
     }
   };
 
-  // Derived game state — stabilize turn display during pending operations
+  // canFire uses raw game state (not display state) to determine if firing is allowed
   const rawIsMyTurn = game ? game.turn === playerNum : false;
-  const hasPendingAction = !!pendingShotRef.current || !!pendingSonarRef.current || reportingRef.current;
-  const lastStableTurnRef = useRef<boolean | null>(null);
-
-  // Only update displayed turn when no pending actions (prevents flip-flop)
-  const isMyTurn = (() => {
-    if (!game) return false;
-    if (hasPendingAction && lastStableTurnRef.current !== null) {
-      return lastStableTurnRef.current;
-    }
-    lastStableTurnRef.current = rawIsMyTurn;
-    return rawIsMyTurn;
-  })();
-
   const canFire = rawIsMyTurn && !game?.awaitingReport && !game?.awaitingSonar && !busy && !reportingRef.current;
 
   // Sonar availability
