@@ -3,7 +3,7 @@ use std::hash::pedersen_hash;
 // Ship lengths: carrier(5), battleship(4), cruiser(3), submarine(3), destroyer(2)
 global SHIP_LENGTHS: [u8; 5] = [5, 4, 3, 3, 2];
 
-fn main(hash: pub Field, ships: [Field; 15]) {
+fn main(ships: [Field; 15]) -> pub Field {
     // Validate each ship's position is within the 10x10 grid
     for i in 0..5 {
         let x = ships[i * 3] as u8;
@@ -55,9 +55,8 @@ fn main(hash: pub Field, ships: [Field; 15]) {
     }
     assert(collisions == 0);
 
-    // Verify the board hash matches the ship positions
-    let computed_hash = pedersen_hash(ships);
-    assert(hash == computed_hash);
+    // Compute and return the board hash
+    pedersen_hash(ships)
 }
 
 #[test]
@@ -69,8 +68,8 @@ fn test_valid_board_horizontal() {
         0, 3, 0, // submarine(3) at (0,3) horizontal
         0, 4, 0  // destroyer(2) at (0,4) horizontal
     ];
-    let hash = pedersen_hash(ships);
-    main(hash, ships);
+    let hash = main(ships);
+    assert(hash == pedersen_hash(ships));
 }
 
 #[test]
@@ -82,8 +81,8 @@ fn test_valid_board_vertical() {
         3, 0, 1, // submarine(3) at (3,0) vertical
         4, 0, 1  // destroyer(2) at (4,0) vertical
     ];
-    let hash = pedersen_hash(ships);
-    main(hash, ships);
+    let hash = main(ships);
+    assert(hash == pedersen_hash(ships));
 }
 
 #[test]
@@ -95,8 +94,7 @@ fn test_valid_board_mixed() {
         0, 5, 0, // submarine(3) at (0,5) horizontal: (0-2, 5)
         7, 7, 1  // destroyer(2) at (7,7) vertical: (7, 7-8)
     ];
-    let hash = pedersen_hash(ships);
-    main(hash, ships);
+    let _hash = main(ships);
 }
 
 #[test(should_fail)]
@@ -108,8 +106,7 @@ fn test_out_of_bounds_horizontal() {
         0, 3, 0,
         0, 4, 0
     ];
-    let hash = pedersen_hash(ships);
-    main(hash, ships);
+    let _hash = main(ships);
 }
 
 #[test(should_fail)]
@@ -121,8 +118,7 @@ fn test_out_of_bounds_vertical() {
         0, 3, 0,
         0, 9, 1  // destroyer(2) at (0,9) vertical: extends to y=10, out of bounds!
     ];
-    let hash = pedersen_hash(ships);
-    main(hash, ships);
+    let _hash = main(ships);
 }
 
 #[test(should_fail)]
@@ -134,14 +130,5 @@ fn test_ship_collision() {
         0, 3, 0,
         0, 4, 0
     ];
-    let hash = pedersen_hash(ships);
-    main(hash, ships);
-}
-
-#[test(should_fail)]
-fn test_wrong_hash() {
-    let ships: [Field; 15] = [
-        0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0, 4, 0
-    ];
-    main(0, ships);
+    let _hash = main(ships);
 }
