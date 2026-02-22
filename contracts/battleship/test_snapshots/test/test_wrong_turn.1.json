@@ -120,6 +120,14 @@
                   },
                   {
                     "key": {
+                      "symbol": "awaiting_sonar"
+                    },
+                    "val": {
+                      "bool": false
+                    }
+                  },
+                  {
+                    "key": {
                       "symbol": "board_hash1"
                     },
                     "val": {
@@ -160,6 +168,14 @@
                   },
                   {
                     "key": {
+                      "symbol": "last_sonar_count"
+                    },
+                    "val": {
+                      "u32": 0
+                    }
+                  },
+                  {
+                    "key": {
                       "symbol": "p1_hits"
                     },
                     "val": {
@@ -168,7 +184,39 @@
                   },
                   {
                     "key": {
+                      "symbol": "p1_sonar_used"
+                    },
+                    "val": {
+                      "bool": false
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "p1_turns_taken"
+                    },
+                    "val": {
+                      "u32": 0
+                    }
+                  },
+                  {
+                    "key": {
                       "symbol": "p2_hits"
+                    },
+                    "val": {
+                      "u32": 0
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "p2_sonar_used"
+                    },
+                    "val": {
+                      "bool": false
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "p2_turns_taken"
                     },
                     "val": {
                       "u32": 0
@@ -196,6 +244,22 @@
                     },
                     "val": {
                       "u32": 1
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "sonar_center_x"
+                    },
+                    "val": {
+                      "u32": 0
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "sonar_center_y"
+                    },
+                    "val": {
+                      "u32": 0
                     }
                   },
                   {
