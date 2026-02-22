@@ -184,8 +184,12 @@ export async function commitBoard(
   player: string,
   boardHash: string
 ): Promise<string> {
-  // boardHash is a hex string — convert to 32 bytes
-  const hashBytes = Buffer.from(boardHash.replace('0x', ''), 'hex');
+  // boardHash is a hex string from Noir field element — convert to 32 bytes
+  const hex = boardHash.replace('0x', '').padStart(64, '0');
+  const hashBytes = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) {
+    hashBytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+  }
   const params = [
     StellarSdk.nativeToScVal(gameId, { type: 'u32' }),
     new StellarSdk.Address(player).toScVal(),
