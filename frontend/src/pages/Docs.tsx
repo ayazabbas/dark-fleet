@@ -166,7 +166,7 @@ export default function Docs() {
               { fn: 'commit_board(game_id, player, hash)', desc: 'Submit Pedersen hash commitment of ship positions.' },
               { fn: 'take_shot(game_id, player, x, y)', desc: 'Fire a shot at the opponent\'s board (must be your turn).' },
               { fn: 'report_result(game_id, player, hit, proof)', desc: 'Report hit/miss with ZK proof stored on-chain for verification.' },
-              { fn: 'use_sonar(game_id, player, cx, cy)', desc: 'Use sonar ping instead of firing (available every 3 turns, once per game).' },
+              { fn: 'use_sonar(game_id, player, cx, cy)', desc: 'Use sonar ping instead of firing (available after 3 turns, once per game).' },
               { fn: 'report_sonar(game_id, player, count, proof)', desc: 'Report sonar count with ZK proof stored on-chain for verification.' },
               { fn: 'claim_victory(game_id, player)', desc: 'Claim win after scoring 17 hits (all ship cells sunk).' },
               { fn: 'get_game(game_id)', desc: 'Read current game state (view function, no tx needed).' },
@@ -212,7 +212,7 @@ export default function Docs() {
               <ul className="list-disc list-inside text-slate-400 space-y-1.5 text-sm pl-2">
                 <li>On your turn, click a cell on "Enemy Waters" to fire</li>
                 <li>Your opponent's browser auto-detects the shot, generates a ZK proof, and reports hit/miss</li>
-                <li>Every 3 turns, a <strong className="text-slate-300">Sonar Ping</strong> becomes available — scan a 3x3 area to learn how many ship cells are there</li>
+                <li>After 3 turns, a one-time <strong className="text-slate-300">Sonar Ping</strong> becomes available — scan a 3×3 area to learn how many ship cells are there (once per game)</li>
                 <li>First to sink all 17 ship cells wins and claims victory on-chain</li>
               </ul>
             </div>
@@ -242,7 +242,7 @@ export default function Docs() {
               <div className="text-xs text-slate-500 mt-1 font-mono break-all">{CONTRACT_ID}</div>
             </a>
             <a
-              href="https://dorahacks.io/"
+              href="https://dorahacks.io/hackathon/stellar-hacks-zk-gaming/detail"
               target="_blank"
               rel="noopener noreferrer"
               className="bg-slate-900 rounded-lg p-4 border border-slate-800 hover:border-cyan-700/50 transition-colors block"
@@ -287,7 +287,7 @@ export default function Docs() {
       {/* Footer */}
       <footer className="bg-slate-900 border-t border-slate-800 px-6 py-4 text-center">
         <p className="text-xs text-slate-600">
-          Built for <a href="https://dorahacks.io/" target="_blank" rel="noopener noreferrer" className="text-cyan-600 hover:text-cyan-500">Stellar Hacks: ZK Gaming</a> — February 2026
+          Built for <a href="https://dorahacks.io/hackathon/stellar-hacks-zk-gaming/detail" target="_blank" rel="noopener noreferrer" className="text-cyan-600 hover:text-cyan-500">Stellar Hacks: ZK Gaming</a> — February 2026
         </p>
       </footer>
     </div>
