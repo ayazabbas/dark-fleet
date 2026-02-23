@@ -24,13 +24,19 @@ jobs:
           targets: wasm32v1-none
 
       - name: Install Stellar CLI
-        run: cargo install stellar-cli --locked
+        uses: stellar/stellar-cli@v22.8.1
+        with:
+          version: 22.8.1
 
-      - name: Build contract (optimized WASM)
+      - name: Build contract (optimized WASM with SEP-0055 metadata)
         run: |
           cd contracts/battleship
-          stellar contract build
-          cp ../../target/wasm32v1-none/release/zk_battleship.wasm ./zk_battleship.wasm
+          stellar contract build \
+            --meta source_repo=github:${{ github.repository }} \
+            --meta home_domain=darkfleet.ayazabbas.com
+          WASM=../../target/wasm32v1-none/release/zk_battleship.wasm
+          stellar contract optimize --wasm "$WASM"
+          cp "${WASM%.wasm}.optimized.wasm" ./zk_battleship.wasm
 
       - name: Compute WASM hash
         id: wasm_hash
