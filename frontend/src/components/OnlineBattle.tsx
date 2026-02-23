@@ -202,28 +202,39 @@ export default function OnlineBattle({
     reportingRef.current = true;
     lastReportedRef.current = key;
 
+    const hit = checkHit(myShips, g.lastShotX, g.lastShotY);
+    setOpponentShots(prev => [...prev, { x: g.lastShotX, y: g.lastShotY, hit }]);
+    addLog(`Opponent fires at ${coord(g.lastShotX,g.lastShotY)} -> ${hit ? 'HIT' : 'MISS'}`);
+
+    let proofBytes: Uint8Array = new Uint8Array(0);
     try {
-      const hit = checkHit(myShips, g.lastShotX, g.lastShotY);
-      setOpponentShots(prev => [...prev, { x: g.lastShotX, y: g.lastShotY, hit }]);
-      // Phase already set to 'reporting' — status derived from it
-      addLog(`Opponent fires at ${coord(g.lastShotX,g.lastShotY)} -> ${hit ? 'HIT' : 'MISS'}`);
+      const ci = shipsToCircuitInput(myShips);
+      const result = await generateShotProof(ci, myBoardHash, g.lastShotX, g.lastShotY, hit);
+      proofBytes = result.proof;
+      addLog(`Shot proof generated for ${coord(g.lastShotX,g.lastShotY)}`);
+    } catch {
+      addLog(`Shot proof generation skipped`);
+    }
 
-      let proofBytes: Uint8Array = new Uint8Array(0);
-      try {
-        const ci = shipsToCircuitInput(myShips);
-        const result = await generateShotProof(ci, myBoardHash, g.lastShotX, g.lastShotY, hit);
-        proofBytes = result.proof;
-        addLog(`Shot proof generated for ${coord(g.lastShotX,g.lastShotY)}`);
-      } catch {
-        addLog(`Shot proof generation skipped`);
-      }
-
+    try {
       const txHash = await reportResultOnChain(gameId, walletAddress, hit, proofBytes);
       addLog(`Reported ${hit ? 'HIT' : 'MISS'} on-chain`, txHash);
       setTurnPhase('my-turn');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'unknown error';
       addLog(`Report error: ${msg}`);
+      // Fallback: retry without proof (proof bytes may exceed resource limits)
+      if (proofBytes.length > 0) {
+        addLog('Retrying report without proof...');
+        try {
+          const txHash = await reportResultOnChain(gameId, walletAddress, hit, new Uint8Array(0));
+          addLog(`Reported ${hit ? 'HIT' : 'MISS'} on-chain (no proof)`, txHash);
+          setTurnPhase('my-turn');
+          return;
+        } catch {
+          addLog('Retry without proof also failed');
+        }
+      }
       lastReportedRef.current = '';
     } finally {
       reportingRef.current = false;
@@ -234,27 +245,37 @@ export default function OnlineBattle({
     reportingRef.current = true;
     lastReportedRef.current = key;
 
+    const count = sonarCount(myShips, g.sonarCenterX, g.sonarCenterY);
+    addLog(`Opponent sonar at ${coord(g.sonarCenterX,g.sonarCenterY)} -> ${count} cells`);
+
+    let proofBytes: Uint8Array = new Uint8Array(0);
     try {
-      const count = sonarCount(myShips, g.sonarCenterX, g.sonarCenterY);
-      // Phase already set to 'reporting' — status derived from it
-      addLog(`Opponent sonar at ${coord(g.sonarCenterX,g.sonarCenterY)} -> ${count} cells`);
+      const ci = shipsToCircuitInput(myShips);
+      const result = await generateSonarProof(ci, myBoardHash, g.sonarCenterX, g.sonarCenterY, count);
+      proofBytes = result.proof;
+      addLog(`Sonar proof generated for ${coord(g.sonarCenterX,g.sonarCenterY)}`);
+    } catch {
+      addLog(`Sonar proof generation skipped`);
+    }
 
-      let proofBytes: Uint8Array = new Uint8Array(0);
-      try {
-        const ci = shipsToCircuitInput(myShips);
-        const result = await generateSonarProof(ci, myBoardHash, g.sonarCenterX, g.sonarCenterY, count);
-        proofBytes = result.proof;
-        addLog(`Sonar proof generated for ${coord(g.sonarCenterX,g.sonarCenterY)}`);
-      } catch {
-        addLog(`Sonar proof generation skipped`);
-      }
-
+    try {
       const txHash = await reportSonarOnChain(gameId, walletAddress, count, proofBytes);
       addLog(`Reported sonar count=${count} on-chain`, txHash);
       setTurnPhase('my-turn');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'unknown error';
       addLog(`Sonar report error: ${msg}`);
+      if (proofBytes.length > 0) {
+        addLog('Retrying sonar report without proof...');
+        try {
+          const txHash = await reportSonarOnChain(gameId, walletAddress, count, new Uint8Array(0));
+          addLog(`Reported sonar count=${count} on-chain (no proof)`, txHash);
+          setTurnPhase('my-turn');
+          return;
+        } catch {
+          addLog('Retry without proof also failed');
+        }
+      }
       lastReportedRef.current = '';
     } finally {
       reportingRef.current = false;
