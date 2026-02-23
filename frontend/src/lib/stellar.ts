@@ -165,13 +165,22 @@ export interface OnChainGame {
   lastSonarProof: Uint8Array;
 }
 
+// Convert bytes (Buffer, Uint8Array, or string) to hex string
+function bytesToHex(val: unknown): string {
+  if (typeof val === 'string') return val;
+  if (val instanceof Uint8Array || (val && typeof (val as any).length === 'number')) {
+    return Array.from(val as Uint8Array).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  return String(val ?? '');
+}
+
 function decodeGame(val: StellarSdk.xdr.ScVal): OnChainGame {
   const native = StellarSdk.scValToNative(val) as Record<string, unknown>;
   return {
     player1: native.player1 as string,
     player2: native.player2 as string,
-    boardHash1: native.board_hash1 as string,
-    boardHash2: native.board_hash2 as string,
+    boardHash1: bytesToHex(native.board_hash1),
+    boardHash2: bytesToHex(native.board_hash2),
     boardsCommitted: Number(native.boards_committed),
     turn: Number(native.turn),
     p1Hits: Number(native.p1_hits),
