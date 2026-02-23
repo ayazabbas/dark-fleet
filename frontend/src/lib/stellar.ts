@@ -45,7 +45,13 @@ async function buildAndSendTx(
     .setTimeout(60)
     .build();
 
-  const simulated = await server.simulateTransaction(tx);
+  // Retry simulation up to 3x — RPC state may lag behind polling
+  let simulated = await server.simulateTransaction(tx);
+  for (let attempt = 1; StellarSdk.rpc.Api.isSimulationError(simulated) && attempt < 3; attempt++) {
+    console.warn(`[buildAndSendTx] Sim attempt ${attempt} failed for ${method}, retrying in 2s...`);
+    await new Promise(r => setTimeout(r, 2000));
+    simulated = await server.simulateTransaction(tx);
+  }
   if (StellarSdk.rpc.Api.isSimulationError(simulated)) {
     console.error(`[buildAndSendTx] Simulation failed for ${method}:`, (simulated as StellarSdk.rpc.Api.SimulateTransactionErrorResponse).error);
     throw new Error(`Simulation failed: ${(simulated as StellarSdk.rpc.Api.SimulateTransactionErrorResponse).error}`);
