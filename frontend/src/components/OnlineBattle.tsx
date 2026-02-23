@@ -185,14 +185,15 @@ export default function OnlineBattle({
     }
 
     // No pending actions — set phase from raw game state
-    if (!reportingRef.current) {
-      if (rawIsMyTurn && !game.awaitingReport && !game.awaitingSonar) {
-        setTurnPhase('my-turn');
-      } else if (rawIsMyTurn && (game.awaitingReport || game.awaitingSonar)) {
-        setTurnPhase('awaiting-report');
-      } else {
-        setTurnPhase('opponent-turn');
-      }
+    // Only update if we're not in an active flow (firing/awaiting-report/reporting)
+    if (!reportingRef.current && !busy) {
+      setTurnPhase(prev => {
+        // Don't override active phases — wait for them to resolve naturally
+        if (prev === 'firing' || prev === 'awaiting-report' || prev === 'reporting') return prev;
+        if (rawIsMyTurn && !game.awaitingReport && !game.awaitingSonar) return 'my-turn';
+        if (rawIsMyTurn && (game.awaitingReport || game.awaitingSonar)) return 'awaiting-report';
+        return 'opponent-turn';
+      });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game]);
