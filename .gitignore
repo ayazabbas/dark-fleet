@@ -6,3 +6,4 @@ dist/
 Prover.toml
 Verifier.toml
 proofs/
+.codex
